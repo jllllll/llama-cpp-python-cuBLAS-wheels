@@ -1,0 +1,75 @@
+name: Build Wheels 0.1.66 AVX2
+
+on: workflow_dispatch
+
+jobs:
+  build_wheels:
+    name: Build wheels for ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-20.04, windows-latest]
+        pyver: ["3.7", "3.8", "3.9", "3.10", "3.11"]
+        cuda: ["11.6.2", "11.7.1", "11.8.0", "12.0.1", "12.1.0"]
+    defaults:
+      run:
+        shell: pwsh
+    env:
+      CUDAVER: ${{ matrix.cuda }}
+
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/checkout@v3
+        with:
+          repository: 'abetlen/llama-cpp-python'
+          ref: 'v0.1.66'
+          path: 'llama-cpp-python'
+          submodules: 'recursive'
+          
+      - uses: actions/setup-python@v3
+        with:
+          python-version: ${{ matrix.pyver }}
+        
+      - name: Setup Mamba
+        uses: conda-incubator/setup-miniconda@v2.2.0
+        with:
+          activate-environment: "build"
+          python-version: ${{ matrix.pyver }}
+          miniforge-variant: Mambaforge
+          miniforge-version: latest
+          use-mamba: true
+          add-pip-as-python-dependency: true
+          auto-activate-base: false
+          
+      - name: Install CUDA Toolkit Linux
+        if: runner.os == 'Linux'
+        uses: Jimver/cuda-toolkit@v0.2.10
+        with:
+          cuda: ${{ matrix.cuda }}
+          method: 'network'
+          
+      - name: Install Dependencies
+        run: |
+          $cudaVersion = $env:CUDAVER
+          $cudaChannels = ''
+          $cudaNum = [int]$cudaVersion.substring($cudaVersion.LastIndexOf('.')+1)
+          while ($cudaNum -ge 0) { $cudaChannels += '-c nvidia/label/cuda-' + $cudaVersion.Remove($cudaVersion.LastIndexOf('.')+1) + $cudaNum + ' '; $cudaNum-- }
+          if ($IsWindows) {mamba install -y 'cuda' $cudaChannels.TrimEnd().Split()}
+          python -m pip install build wheel
+          
+      - name: Build Wheel
+        run: |
+          $cudaVersion = $env:CUDAVER.Remove($env:CUDAVER.LastIndexOf('.')).Replace('.','')
+          if ($IsWindows) {$env:CUDA_PATH = $env:CONDA_PREFIX; $env:CUDA_HOME = $env:CONDA_PREFIX}
+          $env:VERBOSE = '1'
+          $env:FORCE_CMAKE = '1'
+          $env:CMAKE_ARGS = '-DLLAMA_CUBLAS=on -DCMAKE_CUDA_ARCHITECTURES=all'
+          python -m build --wheel -C--build-option=egg_info "-C--build-option=--tag-build=+cu$cudaVersion"
+          
+      - name: Upload files to a GitHub release
+        uses: svenstaro/upload-release-action@2.6.1
+        with:
+          file: ./dist/*.whl
+          tag: wheels
+          file_glob: true
+          overwrite: true
