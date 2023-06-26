@@ -62,6 +62,7 @@ jobs:
           
       - name: Build Wheel
         run: |
+          Set-Location 'llama-cpp-python'
           $cudaVersion = $env:CUDAVER.Remove($env:CUDAVER.LastIndexOf('.')).Replace('.','')
           if ($IsWindows) {$env:CUDA_PATH = $env:CONDA_PREFIX; $env:CUDA_HOME = $env:CONDA_PREFIX}
           $env:VERBOSE = '1'
