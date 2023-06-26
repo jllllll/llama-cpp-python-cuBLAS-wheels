@@ -14,7 +14,7 @@ $wheelSource = $wheelSource.TrimEnd('/')
 ForEach ($cudaVersion in $cudaVersions)
 {
 	$cu = $cudaVersion.replace('.','')
-	$cuContent = $indexContent
+	$cuContent = "<!DOCTYPE html>`n<html>`n  <body>`n    "
 	ForEach ($packageVersion in $packageVersions)
 	{
 		ForEach ($pythonVersion in $pythonVersions)
