@@ -74,7 +74,7 @@ jobs:
       - name: Upload files to a GitHub release
         uses: svenstaro/upload-release-action@2.6.1
         with:
-          file: ./dist/*.whl
+          file: ./llama-cpp-python/dist/*.whl
           tag: wheels
           file_glob: true
           overwrite: true
