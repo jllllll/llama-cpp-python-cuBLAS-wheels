@@ -22,7 +22,7 @@ ForEach ($cudaVersion in $cudaVersions)
 			$pyVer = $pythonVersion.replace('.','')
 			ForEach ($supportedSystem in $supportedSystems)
 			{
-				$wheel = "llama_cpp_python-$packageVersion+cu$cu-cp$pyVer-cp$pyVer-$supportedSystem.whl"
+				$wheel = if ($pyVer -eq '37') {"llama_cpp_python-$packageVersion+cu$cu-cp$pyVer-cp$pyVer`m-$supportedSystem.whl"} else {"llama_cpp_python-$packageVersion+cu$cu-cp$pyVer-cp$pyVer-$supportedSystem.whl"}
 				$cuContent += "<a href=`"$wheelSource/$wheel`">$wheel</a><br/>`n    "
 			}
 		}
