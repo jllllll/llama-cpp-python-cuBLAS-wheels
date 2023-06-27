@@ -5,7 +5,7 @@ Currently, only includes 0.1.62 and 0.1.66.
 
 Requirements:
 - Windows and Linux x86_64
-- CPU with support for AVX, AVX2 and AVX512
+- CPU with support for AVX, AVX2 or AVX512
 - CUDA 11.6 - 12.1
 - CPython 3.7 - 3.11
 
