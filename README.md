@@ -22,5 +22,15 @@ An example for installing 0.1.62 for CUDA 12.1 on a CPU without AVX2 support:
 ```
 python -m pip install llama-cpp-python==0.1.62+cu121 --extra-index-url=https://jllllll.github.io/llama-cpp-python-cuBLAS-wheels/AVX/cu121
 ```
+
+If you are replacing an already existing installation, you may need to uninstall that version before running the command above.  
+You can also replace the existing version in one command like so:
+```
+python -m pip install llama-cpp-python --force-reinstall --no-deps --index-url=https://jllllll.github.io/llama-cpp-python-cuBLAS-wheels/AVX2/cu117
+-OR-
+python -m pip install llama-cpp-python==0.1.66 --force-reinstall --no-deps --index-url=https://jllllll.github.io/llama-cpp-python-cuBLAS-wheels/AVX2/cu117
+```
+Using `--index-url` and `--no-deps`, you do not need to specify the additional `+cu177` in the version number.
+
 ---
 ### All wheels are compiled using GitHub Actions
