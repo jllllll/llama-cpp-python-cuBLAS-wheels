@@ -1,5 +1,5 @@
 # llama-cpp-python cuBLAS wheels
-Wheels for llama-cpp-python compiled with cuBLAS support.
+Wheels for [llama-cpp-python](https://github.com/abetlen/llama-cpp-python) compiled with cuBLAS support.
 
 Currently, only includes 0.1.62 and 0.1.66.
 
