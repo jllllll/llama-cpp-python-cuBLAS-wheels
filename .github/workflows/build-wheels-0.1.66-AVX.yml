@@ -74,6 +74,6 @@ jobs:
         uses: svenstaro/upload-release-action@2.6.1
         with:
           file: ./llama-cpp-python/dist/*.whl
-          tag: wheels
+          tag: AVX
           file_glob: true
           overwrite: true

@@ -7,6 +7,7 @@ $packageVersions = "0.1.62","0.1.66"
 $pythonVersions = "3.7","3.8","3.9","3.10","3.11"
 $supportedSystems = 'linux_x86_64','win_amd64'
 $wheelSource = 'https://github.com/jllllll/llama-cpp-python-cuBLAS-wheels/releases/download/wheels'
+$wheelSourceAVX = 'https://github.com/jllllll/llama-cpp-python-cuBLAS-wheels/releases/download/AVX'
 $packageName = 'llama_cpp_python'
 $packageNameNormalized = 'llama-cpp-python'
 
@@ -30,8 +31,8 @@ Foreach ($avxVersion in $avxVersions)
 				ForEach ($supportedSystem in $supportedSystems)
 				{
 					$wheel = if ($pyVer -eq '37') {"$packageName-$packageVersion+cu$cu-cp$pyVer-cp$pyVer`m-$supportedSystem.whl"} else {"$packageName-$packageVersion+cu$cu-cp$pyVer-cp$pyVer-$supportedSystem.whl"}
-					if ($avxVersion -eq 'AVX') {$wheel = $wheel.replace($cu,"$cu`AVX")}
-					$cuContent += "<a href=`"$wheelSource/$wheel`">$wheel</a><br/>`n    "
+					if ($avxVersion -eq 'AVX') {$cuContent += "<a href=`"$wheelSourceAVX/$wheel`">$wheel</a><br/>`n    "}
+					if ($avxVersion -eq 'AVX2') {$cuContent += "<a href=`"$wheelSource/$wheel`">$wheel</a><br/>`n    "}
 				}
 			}
 			$cuContent += "`n    "
