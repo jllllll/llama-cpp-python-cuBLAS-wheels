@@ -1,23 +1,21 @@
 Set-Location $PSScriptRoot
 
 $destinationDir = if (Test-Path $(Join-Path $(Resolve-Path '.') 'docs')) {Join-Path '.' 'docs' -resolve} else {(New-Item 'docs' -ItemType 'Directory').fullname}
-$avxVersions = "AVX","AVX2"
+$avxVersions = "AVX","AVX2","AVX512"
 $cudaVersions = "11.6","11.7","11.8","12.0","12.1"
 $packageVersions = "0.1.62","0.1.66"
 $pythonVersions = "3.7","3.8","3.9","3.10","3.11"
 $supportedSystems = 'linux_x86_64','win_amd64'
-$wheelSource = 'https://github.com/jllllll/llama-cpp-python-cuBLAS-wheels/releases/download/wheels'
-$wheelSourceAVX = 'https://github.com/jllllll/llama-cpp-python-cuBLAS-wheels/releases/download/AVX'
+$wheelSource = 'https://github.com/jllllll/llama-cpp-python-cuBLAS-wheels/releases/download'
 $packageName = 'llama_cpp_python'
 $packageNameNormalized = 'llama-cpp-python'
 
-$AVXDir = if (Test-Path $(Join-Path $destinationDir 'AVX')) {Join-Path $destinationDir 'AVX'} else {(New-Item $(Join-Path $destinationDir 'AVX') -ItemType 'Directory').fullname}
-$AVX2Dir = if (Test-Path $(Join-Path $destinationDir 'AVX2')) {Join-Path $destinationDir 'AVX2'} else {(New-Item $(Join-Path $destinationDir 'AVX2') -ItemType 'Directory').fullname}
+$avxVersions.foreach({Set-Variable "$_`Dir" $(if (Test-Path $(Join-Path $destinationDir $_)) {Join-Path $destinationDir $_} else {(New-Item $(Join-Path $destinationDir $_) -ItemType 'Directory').fullname})})
 
 $indexContent = "<!DOCTYPE html>`n<html>`n  <body>`n    "
-$wheelSource = $wheelSource.TrimEnd('/')
 Foreach ($avxVersion in $avxVersions)
 {
+	if ($avxVersion -eq 'AVX2') {$wheelURL = $wheelSource.TrimEnd('/') + '/wheels'} else {$wheelURL = $wheelSource.TrimEnd('/') + "/$avxVersion"}
 	$subIndexContent = "<!DOCTYPE html>`n<html>`n  <body>`n    "
 	ForEach ($cudaVersion in $cudaVersions)
 	{
@@ -31,8 +29,7 @@ Foreach ($avxVersion in $avxVersions)
 				ForEach ($supportedSystem in $supportedSystems)
 				{
 					$wheel = if ($pyVer -eq '37') {"$packageName-$packageVersion+cu$cu-cp$pyVer-cp$pyVer`m-$supportedSystem.whl"} else {"$packageName-$packageVersion+cu$cu-cp$pyVer-cp$pyVer-$supportedSystem.whl"}
-					if ($avxVersion -eq 'AVX') {$cuContent += "<a href=`"$wheelSourceAVX/$wheel`">$wheel</a><br/>`n    "}
-					if ($avxVersion -eq 'AVX2') {$cuContent += "<a href=`"$wheelSource/$wheel`">$wheel</a><br/>`n    "}
+					$cuContent += "<a href=`"$wheelURL/$wheel`">$wheel</a><br/>`n    "
 				}
 			}
 			$cuContent += "`n    "
