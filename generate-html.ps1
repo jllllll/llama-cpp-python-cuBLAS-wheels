@@ -6,6 +6,7 @@ $packageVersions = "0.1.62","0.1.66"
 $pythonVersions = "3.7","3.8","3.9","3.10","3.11"
 $supportedSystems = 'linux_x86_64','win_amd64'
 $wheelSource = 'https://github.com/jllllll/llama-cpp-python-cuBLAS-wheels/releases/download/wheels'
+$indexName = 'index'
 
 
 $indexContent = "<!DOCTYPE html>`n<html>`n  <body>`n    "
@@ -27,10 +28,9 @@ ForEach ($cudaVersion in $cudaVersions)
 		}
 		$cuContent += "`n    "
 	}
-	$indexContent += "<a href=`"cu$cu.html`">CUDA $cudaVersion</a><br/>`n    "
+	$indexContent += "<a href=`"cu$cu`">CUDA $cudaVersion</a><br/>`n    "
 	$cuContent.TrimEnd() + "`n  </body>`n</html>" > $(Join-Path $destinationDir "cu$cu.html")
 }
-$indexContent.TrimEnd() + "`n  </body>`n</html>" > $(Join-Path $destinationDir "llama-cpp-python.html")
-"<!DOCTYPE html>`n<html>`n  <body>`n    <a href=`"llama-cpp-python.html`">llama-cpp-python</a>`n  </body>`n</html>" > $(Join-Path $destinationDir "index.html")
+$indexContent.TrimEnd() + "`n  </body>`n</html>" > $(Join-Path $destinationDir "$indexName.html")
 
 pause
