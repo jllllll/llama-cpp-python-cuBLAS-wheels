@@ -30,7 +30,7 @@ python -m pip install llama-cpp-python --force-reinstall --no-deps --index-url=h
 -OR-
 python -m pip install llama-cpp-python==0.1.66 --force-reinstall --no-deps --index-url=https://jllllll.github.io/llama-cpp-python-cuBLAS-wheels/AVX2/cu117
 ```
-Using `--index-url` and `--no-deps`, you do not need to specify the additional `+cu177` in the version number.
+Using `--index-url` and `--no-deps`, you do not need to specify the additional `+cu117` in the version number.
 
 ---
 ### All wheels are compiled using GitHub Actions
