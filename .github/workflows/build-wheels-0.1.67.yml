@@ -1,4 +1,4 @@
-name: Build Wheels 0.1.67 AVX2
+name: Build Wheels 0.1.67
 
 on: workflow_dispatch
 
@@ -14,11 +14,13 @@ jobs:
         os: [ubuntu-20.04, windows-latest]
         pyver: ["3.7", "3.8", "3.9", "3.10", "3.11"]
         cuda: ["11.6.2", "11.7.1", "11.8.0", "12.0.1", "12.1.0"]
+        releasetag: ["AVX","wheels","AVX512"]
     defaults:
       run:
         shell: pwsh
     env:
       CUDAVER: ${{ matrix.cuda }}
+      AVXVER: ${{ matrix.releasetag }}
 
     steps:
       - uses: actions/checkout@v3
@@ -63,13 +65,15 @@ jobs:
           $env:VERBOSE = '1'
           $env:FORCE_CMAKE = '1'
           $env:CMAKE_ARGS = '-DLLAMA_CUBLAS=on -DCMAKE_CUDA_ARCHITECTURES=all'
+          if ($env:AVXVER -eq 'AVX') {$env:CMAKE_ARGS = $env:CMAKE_ARGS + ' -DLLAMA_AVX2=off'}
+          if ($env:AVXVER -eq 'AVX512') {$env:CMAKE_ARGS = $env:CMAKE_ARGS + ' -DLLAMA_AVX512=on'}
           python -m build --wheel -C--build-option=egg_info "-C--build-option=--tag-build=+cu$cudaVersion"
           
       - name: Upload files to a GitHub release
         uses: svenstaro/upload-release-action@2.6.1
         with:
           file: ./llama-cpp-python/dist/*.whl
-          tag: wheels
+          tag: ${{ matrix.releasetag }}
           file_glob: true
           make_latest: false
           overwrite: true
