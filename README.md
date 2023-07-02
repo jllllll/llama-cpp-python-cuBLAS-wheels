@@ -15,7 +15,7 @@ To install, you can use this command:
 ```
 python -m pip install llama-cpp-python --prefer-binary --extra-index-url=https://jllllll.github.io/llama-cpp-python-cuBLAS-wheels/AVX2/cu117
 ```
-This will install the latest llama-cpp-python version available from here for CUDA 11.7. You can change both instances of `cu117` to change the CUDA version.  
+This will install the latest llama-cpp-python version available from here for CUDA 11.7. You can change `cu117` to change the CUDA version.  
 You can also change `AVX2` to `AVX` or `AVX512` based on what your CPU supports.
 
 An example for installing 0.1.62 for CUDA 12.1 on a CPU without AVX2 support:
