@@ -6,30 +6,21 @@ permissions:
   contents: write
   
 jobs:
-  define_matrix:
-    name: Define Workflow Matrix
-    runs-on: ubuntu-latest
-    outputs:
-      matrix: ${{ steps.set-matrix.outputs.matrix }}
-    defaults:
-      run:
-        shell: pwsh
-        
-    steps:
-      - uses: actions/checkout@v3
-      
-      - name: Define Job Output
-        id: set-matrix
-        run: |
-          $x = Get-Item './.github/workflows/build-wheels-*.yml'
-          $y = $x.foreach({Write-Output ('./.github/workflows/{0}' -f $_.Name)}) -Join ', '
-          Write-Output "matrix={`"node`":[$y]}" >> "$env:GITHUB_OUTPUT"
-          
-  run_workflows:
-    name: Run ${{ matrix.workflow }}
-    needs: define_matrix
-    strategy:
-      max-parallel: 1
-      matrix:
-        workflow: ${{ fromJSON(needs.define_matrix.outputs.matrix) }}
-    uses: ${{ matrix.workflow }}
+  run_workflow_0.1.62:
+    name: Run build-wheels-0.1.62
+    uses: ./.github/workflows/build-wheels-0.1.62.yml
+    
+  run_workflow_0.1.66:
+    name: Run build-wheels-0.1.66
+    needs: run_workflow_0.1.62
+    uses: ./.github/workflows/build-wheels-0.1.66.yml
+    
+  run_workflow_0.1.67:
+    name: Run build-wheels-0.1.67
+    needs: run_workflow_0.1.66
+    uses: ./.github/workflows/build-wheels-0.1.67.yml
+    
+  run_workflow_0.1.68:
+    name: Run build-wheels-0.1.68
+    needs: run_workflow_0.1.67
+    uses: ./.github/workflows/build-wheels-0.1.68.yml
