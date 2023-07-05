@@ -1,6 +1,8 @@
 name: Build Wheels 0.1.67
 
-on: workflow_dispatch
+on:
+  workflow_dispatch:
+  workflow_call:
 
 permissions:
   contents: write
@@ -13,7 +15,7 @@ jobs:
       matrix:
         os: [ubuntu-20.04, windows-latest]
         pyver: ["3.7", "3.8", "3.9", "3.10", "3.11"]
-        cuda: ["11.6.2", "11.7.1", "11.8.0", "12.0.1", "12.1.0"]
+        cuda: ["11.6.2", "11.7.1", "11.8.0", "12.0.1", "12.1.1", "12.2.0"]
         releasetag: ["AVX","wheels","AVX512"]
     defaults:
       run:

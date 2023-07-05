@@ -1,0 +1,35 @@
+name: Build All Wheels
+
+on: workflow_dispatch
+
+permissions:
+  contents: write
+  
+jobs:
+  define_matrix:
+    name: Define Workflow Matrix
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
+    defaults:
+      run:
+        shell: pwsh
+        
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Define Job Output
+        id: set-matrix
+        run: |
+          $x = Get-Item './.github/workflows/build-wheels-*.yml'
+          $y = $x.foreach({Write-Output ('./.github/workflows/{0}' -f $_.Name)}) -Join ', '
+          Write-Output "matrix={`"node`":[$y]}" >> "$env:GITHUB_OUTPUT"
+          
+  run_workflows:
+    name: Run ${{ matrix.workflow }}
+    needs: define_matrix
+    strategy:
+      max-parallel: 1
+      matrix:
+        workflow: ${{ fromJSON(needs.define_matrix.outputs.matrix) }}
+    uses: ${{ matrix.workflow }}
