@@ -6,7 +6,7 @@ Includes 0.1.62, 0.1.66, 0.1.67 and 0.1.68.
 Requirements:
 - Windows and Linux x86_64
 - CPU with support for AVX, AVX2 or AVX512
-- CUDA 11.6 - 12.1
+- CUDA 11.6 - 12.2
 - CPython 3.7 - 3.11
 
 Installation instructions:
@@ -32,6 +32,8 @@ python -m pip install llama-cpp-python==0.1.66 --force-reinstall --no-deps --ind
 -OR-
 python -m pip install llama-cpp-python --prefer-binary --upgrade --extra-index-url=https://jllllll.github.io/llama-cpp-python-cuBLAS-wheels/AVX2/cu117
 ```
+
+Wheels can be manually downloaded from: https://jllllll.github.io/llama-cpp-python-cuBLAS-wheels
 
 ---
 ### All wheels are compiled using GitHub Actions

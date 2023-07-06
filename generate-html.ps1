@@ -2,7 +2,7 @@ Set-Location $PSScriptRoot
 
 $destinationDir = if (Test-Path $(Join-Path $(Resolve-Path '.') 'docs')) {Join-Path '.' 'docs' -resolve} else {(New-Item 'docs' -ItemType 'Directory').fullname}
 $avxVersions = "AVX","AVX2","AVX512"
-$cudaVersions = "11.6","11.7","11.8","12.0","12.1"
+$cudaVersions = "11.6","11.7","11.8","12.0","12.1","12.2"
 $packageVersions = "0.1.62","0.1.66","0.1.67","0.1.68"
 $pythonVersions = "3.7","3.8","3.9","3.10","3.11"
 $supportedSystems = 'linux_x86_64','win_amd64'
