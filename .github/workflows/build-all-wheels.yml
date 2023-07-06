@@ -7,20 +7,20 @@ permissions:
   
 jobs:
   run_workflow_0-1-62:
-    name: Run build-wheels-0.1.62
+    name: Build Wheels 0.1.62
     uses: ./.github/workflows/build-wheels-0.1.62.yml
     
   run_workflow_0-1-66:
-    name: Run build-wheels-0.1.66
+    name: Build Wheels 0.1.66
     needs: run_workflow_0-1-62
     uses: ./.github/workflows/build-wheels-0.1.66.yml
     
   run_workflow_0-1-67:
-    name: Run build-wheels-0.1.67
+    name: Build Wheels 0.1.67
     needs: run_workflow_0-1-66
     uses: ./.github/workflows/build-wheels-0.1.67.yml
     
   run_workflow_0-1-68:
-    name: Run build-wheels-0.1.68
+    name: Build Wheels 0.1.68
     needs: run_workflow_0-1-67
     uses: ./.github/workflows/build-wheels-0.1.68.yml
