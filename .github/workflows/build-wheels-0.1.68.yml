@@ -69,10 +69,30 @@ jobs:
           python -m build --wheel -C--build-option=egg_info "-C--build-option=--tag-build=+cu$cudaVersion"
           
       - name: Upload files to a GitHub release
+        id: upload-release
         uses: svenstaro/upload-release-action@2.6.1
+        continue-on-error: true
         with:
           file: ./dist/*.whl
           tag: ${{ matrix.releasetag }}
           file_glob: true
           make_latest: false
           overwrite: true
+        
+      - uses: actions/upload-artifact@v3
+        if: ${{ steps.upload-release.outcome == 'failure' && matrix.releasetag == 'AVX' }}
+        with:
+          name: 'wheels-AVX'
+          path: ./dist/*.whl
+        
+      - uses: actions/upload-artifact@v3
+        if: ${{ steps.upload-release.outcome == 'failure' && matrix.releasetag == 'wheels' }}
+        with:
+          name: 'wheels-AVX2'
+          path: ./dist/*.whl
+        
+      - uses: actions/upload-artifact@v3
+        if: ${{ steps.upload-release.outcome == 'failure' && matrix.releasetag == 'AVX512' }}
+        with:
+          name: 'wheels-AVX512'
+          path: ./dist/*.whl
