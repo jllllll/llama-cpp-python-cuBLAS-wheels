@@ -24,3 +24,8 @@ jobs:
     name: Build Wheels 0.1.68
     needs: run_workflow_0-1-67
     uses: ./.github/workflows/build-wheels-0.1.68.yml
+    
+  run_workflow_0-1-69:
+    name: Build Wheels 0.1.69
+    needs: run_workflow_0-1-68
+    uses: ./.github/workflows/build-wheels-0.1.68.yml
