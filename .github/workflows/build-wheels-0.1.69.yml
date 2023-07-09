@@ -63,7 +63,9 @@ jobs:
           if ($IsLinux) {$env:LD_LIBRARY_PATH = $env:CONDA_PREFIX + '/lib:' + $env:LD_LIBRARY_PATH}
           $env:VERBOSE = '1'
           $env:FORCE_CMAKE = '1'
-          $env:CMAKE_ARGS = '-DLLAMA_CUBLAS=on -DCMAKE_CUDA_ARCHITECTURES=all'
+          $env:CMAKE_ARGS = '-DLLAMA_CUBLAS=on -DCMAKE_CUDA_ARCHITECTURES=35-real;37-real;52;61-real;70-real;72-real;75-real;80-real;86-real;89-real;90'
+          if ([version]$env:CUDAVER -ge [version]'12.0') {$env:CMAKE_ARGS = '-DLLAMA_CUBLAS=on -DCMAKE_CUDA_ARCHITECTURES=52;61-real;70-real;72-real;75-real;80-real;86-real;89-real;90'}
+          if ([version]$env:CUDAVER -lt [version]'11.8') {$env:CMAKE_ARGS = '-DLLAMA_CUBLAS=on -DCMAKE_CUDA_ARCHITECTURES=35-real;37-real;52;61-real;70-real;72-real;75-real;80-real;86'}
           if ($env:AVXVER -eq 'AVX') {$env:CMAKE_ARGS = $env:CMAKE_ARGS + ' -DLLAMA_AVX2=off'}
           if ($env:AVXVER -eq 'AVX512') {$env:CMAKE_ARGS = $env:CMAKE_ARGS + ' -DLLAMA_AVX512=on'}
           python -m build --wheel -C--build-option=egg_info "-C--build-option=--tag-build=+cu$cudaVersion"
@@ -80,19 +82,7 @@ jobs:
           overwrite: true
         
       - uses: actions/upload-artifact@v3
-        if: ${{ steps.upload-release.outcome == 'failure' && matrix.releasetag == 'AVX' }}
+        if: steps.upload-release.outcome == 'failure'
         with:
-          name: 'wheels-AVX'
-          path: ./dist/*.whl
-        
-      - uses: actions/upload-artifact@v3
-        if: ${{ steps.upload-release.outcome == 'failure' && matrix.releasetag == 'wheels' }}
-        with:
-          name: 'wheels-AVX2'
-          path: ./dist/*.whl
-        
-      - uses: actions/upload-artifact@v3
-        if: ${{ steps.upload-release.outcome == 'failure' && matrix.releasetag == 'AVX512' }}
-        with:
-          name: 'wheels-AVX512'
+          name: ${{ matrix.releasetag == 'wheels' && 'AVX2' || matrix.releasetag }}
           path: ./dist/*.whl
