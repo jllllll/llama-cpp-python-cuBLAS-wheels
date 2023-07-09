@@ -81,19 +81,7 @@ jobs:
           overwrite: true
         
       - uses: actions/upload-artifact@v3
-        if: ${{ steps.upload-release.outcome == 'failure' && matrix.releasetag == 'AVX' }}
+        if: steps.upload-release.outcome == 'failure'
         with:
-          name: 'wheels-AVX'
-          path: ./dist/*.whl
-        
-      - uses: actions/upload-artifact@v3
-        if: ${{ steps.upload-release.outcome == 'failure' && matrix.releasetag == 'wheels' }}
-        with:
-          name: 'wheels-AVX2'
-          path: ./dist/*.whl
-        
-      - uses: actions/upload-artifact@v3
-        if: ${{ steps.upload-release.outcome == 'failure' && matrix.releasetag == 'AVX512' }}
-        with:
-          name: 'wheels-AVX512'
+          name: ${{ matrix.releasetag == 'wheels' && 'AVX2' || matrix.releasetag }}
           path: ./dist/*.whl
