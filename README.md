@@ -1,7 +1,7 @@
 # llama-cpp-python cuBLAS wheels
 Wheels for [llama-cpp-python](https://github.com/abetlen/llama-cpp-python) compiled with cuBLAS support.
 
-Includes 0.1.62, 0.1.66, 0.1.67, 0.1.68 and 0.1.69.
+Includes 0.1.62, 0.1.66, 0.1.67, 0.1.68, 0.1.69 and 0.1.70.
 
 Requirements:
 - Windows and Linux x86_64
