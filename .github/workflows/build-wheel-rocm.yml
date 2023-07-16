@@ -1,0 +1,62 @@
+name: Build ROCm 5.4.2 Wheels
+
+on: workflow_dispatch
+
+jobs:
+  build_wheels:
+    name: Build ROCm wheel
+    runs-on: ubuntu-20.04
+    defaults:
+      run:
+        shell: pwsh
+
+    steps:
+      - name: Free Disk Space
+        uses: jlumbroso/free-disk-space@v1.2.0
+        with:
+          tool-cache: false
+          android: true
+          dotnet: true
+          haskell: true
+          large-packages: false
+          swap-storage: false
+    
+      - uses: actions/checkout@v3
+        with:
+          repository: 'abetlen/llama-cpp-python'
+          ref: 'v0.1.72'
+          submodules: 'recursive'
+          
+      - name: Install ROCm SDK
+        run: |
+          [ ! -d /etc/apt/keyrings ] && sudo mkdir --parents --mode=0755 /etc/apt/keyrings
+          wget https://repo.radeon.com/rocm/rocm.gpg.key -O - | gpg --dearmor | sudo tee /etc/apt/keyrings/rocm.gpg > /dev/null
+          echo "deb [arch=amd64 signed-by=/etc/apt/keyrings/rocm.gpg] https://repo.radeon.com/rocm/apt/5.4.2 focal main" | sudo tee --append /etc/apt/sources.list.d/rocm.list
+          echo -e 'Package: *\nPin: release o=repo.radeon.com\nPin-Priority: 600' | sudo tee /etc/apt/preferences.d/rocm-pin-600
+          sudo apt update
+          sudo apt install rocm-dev rocsparse-dev rocprim-dev rocthrust-dev rocblas-dev hipblas-dev hipcub-dev hipsparse-dev -y
+          echo "/opt/rocm/bin" >> $GITHUB_PATH
+          echo "ROCM_PATH=/opt/rocm" >> $GITHUB_ENV
+          echo "ROCM_VERSION=5.4.2" >> $GITHUB_ENV
+        shell: bash
+          
+      - uses: actions/setup-python@v3
+        with:
+          python-version: ${{ matrix.pyver }}
+          
+      - name: Install Dependencies
+        run: |
+          pip3 install build wheel cmake
+        
+      - name: Build Wheel
+        run: |
+          $env:VERBOSE = '1'
+          $env:FORCE_CMAKE = '1'
+          $env:CMAKE_ARGS = '-DLLAMA_CUBLAS=on -DCMAKE_HIP_ARCHITECTURES=gfx900:xnack-;gfx906:xnack-;gfx908:xnack-;gfx90a:xnack-;gfx90a:xnack+;gfx1030'
+          $env:CXX = '/opt/rocm/bin/hipcc'
+          python3 -m build -n --wheel -C--build-option=egg_info "-C--build-option=--tag-build=+rocm5.4.2"
+        
+      - uses: actions/upload-artifact@v3
+        with:
+          name: 'wheels'
+          path: ./dist/*.whl
