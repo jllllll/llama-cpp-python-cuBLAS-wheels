@@ -46,7 +46,7 @@ jobs:
           
       - name: Install Dependencies
         run: |
-          pip3 install build wheel cmake
+          pip3 install build wheel cmake scikit-build
         
       - name: Build Wheel
         run: |
