@@ -1,37 +1,44 @@
-name: Build Wheels 0.1.73
+name: Build AVX2 Wheels for Text Generation Webui
 
 on:
   workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version tag of llama-cpp-python to build: v0.1.73'
+        default: 'v0.1.73'
+        required: false
+        type: string
   workflow_call:
+    inputs:
+      version:
+        description: 'Version tag of llama-cpp-python to build: v0.1.73'
+        default: 'v0.1.73'
+        required: false
+        type: string
 
 permissions:
   contents: write
-  
-env:
-  PACKAGEVER: v0.1.73
 
 jobs:
   build_wheels:
-    name: ${{ matrix.os }} ${{ matrix.pyver }} ${{ matrix.cuda }} ${{ matrix.releasetag == 'wheels' && 'AVX2' || matrix.releasetag }}
+    name: ${{ matrix.os }} ${{ matrix.pyver }} ${{ matrix.cuda }} AVX2
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
         os: [ubuntu-20.04, windows-latest]
-        pyver: ["3.7", "3.8", "3.9", "3.10", "3.11"]
+        pyver: ["3.8", "3.9", "3.10", "3.11"]
         cuda: ["11.6.2", "11.7.1", "11.8.0", "12.0.1", "12.1.1", "12.2.0"]
-        releasetag: ["AVX","wheels","AVX512"]
     defaults:
       run:
         shell: pwsh
     env:
       CUDAVER: ${{ matrix.cuda }}
-      AVXVER: ${{ matrix.releasetag }}
 
     steps:
       - uses: actions/checkout@v3
         with:
           repository: 'abetlen/llama-cpp-python'
-          ref: ${{ env.PACKAGEVER }}
+          ref: ${{ inputs.version }}
           submodules: 'recursive'
           
       - uses: actions/setup-python@v3
@@ -58,6 +65,25 @@ jobs:
           mamba install -y 'cuda' $cudaChannels.TrimEnd().Split()
           python -m pip install build wheel
           
+      - name: Change Package Name
+        run: |
+          $setup = Get-Content 'setup.py' -raw
+          $pyproject = Get-Content 'pyproject.toml' -raw
+          $cmakelists = Get-Content 'CMakeLists.txt' -raw
+          $regexstr = '(?s)name="llama_cpp_python",(.+)(package_dir={"llama_cpp": "llama_cpp", "llama_cpp.server": "llama_cpp/server"},)(.+?)(packages=\["llama_cpp", "llama_cpp.server"],)'
+          $regexmatch = [Regex]::Matches($setup,$regexstr)
+          if (!($regexmatch[0].Success)) {throw 'setup.py parsing failed'}
+          $newstr = 'name="llama_cpp_python_cuda",' + $regexmatch[0].Groups[1].Value + $regexmatch[0].Groups[2].Value.Replace('llama_cpp','llama_cpp_cuda') + $regexmatch[0].Groups[3].Value + $regexmatch[0].Groups[4].Value.Replace('llama_cpp','llama_cpp_cuda')
+          $newsetup = $regexmatch[0].Result(('$`'+$newstr+'$'''))
+          $regexstr = '(?s)(?<=name = ")llama_cpp_python(".+?packages = \[{include = ")llama_cpp(".+)'
+          $regexmatch = [Regex]::Matches($pyproject,$regexstr)
+          if (!($regexmatch[0].Success)) {throw 'pyproject.toml parsing failed'}
+          $newpyproject = $regexmatch[0].Result(('$`'+'llama_cpp_python_cuda'+'$1llama_cpp_cuda$2'))
+          Copy-Item 'llama_cpp' 'llama_cpp_cuda' -recurse
+          New-Item 'setup.py' -itemType File -value $newsetup -force
+          New-Item 'pyproject.toml' -itemType File -value $newpyproject -force
+          New-Item 'CMakeLists.txt' -itemType File -value $cmakelists.Replace('llama_cpp','llama_cpp_cuda') -force
+          
       - name: Build Wheel
         run: |
           $cudaVersion = $env:CUDAVER.Remove($env:CUDAVER.LastIndexOf('.')).Replace('.','')
@@ -67,8 +93,6 @@ jobs:
           $env:VERBOSE = '1'
           $env:FORCE_CMAKE = '1'
           $env:CMAKE_ARGS = '-DLLAMA_CUBLAS=on -DCMAKE_CUDA_ARCHITECTURES=all'
-          if ($env:AVXVER -eq 'AVX') {$env:CMAKE_ARGS = $env:CMAKE_ARGS + ' -DLLAMA_AVX2=off'}
-          if ($env:AVXVER -eq 'AVX512') {$env:CMAKE_ARGS = $env:CMAKE_ARGS + ' -DLLAMA_AVX512=on'}
           python -m build --wheel -C--build-option=egg_info "-C--build-option=--tag-build=+cu$cudaVersion"
           
       - name: Upload files to a GitHub release
@@ -77,7 +101,7 @@ jobs:
         continue-on-error: true
         with:
           file: ./dist/*.whl
-          tag: ${{ matrix.releasetag }}
+          tag: textgen-webui
           file_glob: true
           make_latest: false
           overwrite: true
@@ -85,12 +109,5 @@ jobs:
       - uses: actions/upload-artifact@v3
         if: steps.upload-release.outcome == 'failure'
         with:
-          name: ${{ matrix.releasetag == 'wheels' && 'AVX2' || matrix.releasetag }}
+          name: textgen-webui-wheels
           path: ./dist/*.whl
-          
-  build_oobabooga:
-    name: Build AVX2 Wheels for Text Generation Webui
-    needs: build_wheels
-    uses: ./.github/workflows/build-wheels-oobabooga.yml
-    with:
-      version: ${{ env.PACKAGEVER }}
