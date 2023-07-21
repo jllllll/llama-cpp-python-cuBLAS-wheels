@@ -1,4 +1,4 @@
-name: Build Wheels 0.1.70
+name: Build Wheels test
 
 on:
   workflow_dispatch:
