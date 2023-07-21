@@ -1,4 +1,4 @@
 @echo off
 
-cd docs
+cd index
 python -m http.server 7860
