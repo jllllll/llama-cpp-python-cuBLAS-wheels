@@ -6,9 +6,6 @@ on:
 
 permissions:
   contents: write
-  
-env:
-  PACKAGEVER: v0.1.73
 
 jobs:
   build_wheels:
@@ -26,6 +23,9 @@ jobs:
     env:
       CUDAVER: ${{ matrix.cuda }}
       AVXVER: ${{ matrix.releasetag }}
+      PACKAGEVER: v0.1.73
+    outputs:
+      packagever: ${{ env.PACKAGEVER }}
 
     steps:
       - uses: actions/checkout@v3
@@ -93,4 +93,4 @@ jobs:
     needs: build_wheels
     uses: ./.github/workflows/build-wheels-oobabooga.yml
     with:
-      version: ${{ env.PACKAGEVER }}
+      version: ${{ needs.build_wheels.outputs.packagever }}
