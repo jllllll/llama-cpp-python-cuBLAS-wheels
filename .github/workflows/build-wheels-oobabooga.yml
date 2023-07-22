@@ -4,15 +4,15 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'Version tag of llama-cpp-python to build: v0.1.73'
-        default: 'v0.1.73'
+        description: 'Version tag of llama-cpp-python to build: v0.1.74'
+        default: 'v0.1.74'
         required: false
         type: string
   workflow_call:
     inputs:
       version:
-        description: 'Version tag of llama-cpp-python to build: v0.1.73'
-        default: 'v0.1.73'
+        description: 'Version tag of llama-cpp-python to build: v0.1.74'
+        default: 'v0.1.74'
         required: false
         type: string
 
@@ -21,18 +21,20 @@ permissions:
 
 jobs:
   build_wheels:
-    name: ${{ matrix.os }} ${{ matrix.pyver }} ${{ matrix.cuda }} AVX2
+    name: ${{ matrix.os }} ${{ matrix.pyver }} ${{ matrix.cuda }} ${{ matrix.avxver }}
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
         os: [ubuntu-20.04, windows-latest]
         pyver: ["3.8", "3.9", "3.10", "3.11"]
-        cuda: ["11.6.2", "11.7.1", "11.8.0", "12.0.1", "12.1.1", "12.2.0"]
+        cuda: ["11.7.1", "11.8.0", "12.0.1", "12.1.1", "12.2.0"]
+        avxver: ["AVX","AVX2"]
     defaults:
       run:
         shell: pwsh
     env:
       CUDAVER: ${{ matrix.cuda }}
+      AVXVER: ${{ matrix.avxver }}
 
     steps:
       - uses: actions/checkout@v3
@@ -93,7 +95,8 @@ jobs:
           $env:VERBOSE = '1'
           $env:FORCE_CMAKE = '1'
           $env:CMAKE_ARGS = '-DLLAMA_CUBLAS=on -DCMAKE_CUDA_ARCHITECTURES=all'
-          python -m build --wheel -C--build-option=egg_info "-C--build-option=--tag-build=+cu$cudaVersion"
+          if ($env:AVXVER -eq 'AVX') {$env:CMAKE_ARGS = $env:CMAKE_ARGS + ' -DLLAMA_AVX2=off'; $buildtag = 'AVX'}
+          python -m build --wheel -C--build-option=egg_info "-C--build-option=--tag-build=+cu$cudaVersion$buildtag"
           
       - name: Upload files to a GitHub release
         id: upload-release
