@@ -23,15 +23,12 @@ jobs:
     env:
       CUDAVER: ${{ matrix.cuda }}
       AVXVER: ${{ matrix.releasetag }}
-      PACKAGEVER: v0.1.73
-    outputs:
-      packagever: ${{ env.PACKAGEVER }}
 
     steps:
       - uses: actions/checkout@v3
         with:
           repository: 'abetlen/llama-cpp-python'
-          ref: ${{ env.PACKAGEVER }}
+          ref: v0.1.73
           submodules: 'recursive'
           
       - uses: actions/setup-python@v3
@@ -87,10 +84,3 @@ jobs:
         with:
           name: ${{ matrix.releasetag == 'wheels' && 'AVX2' || matrix.releasetag }}
           path: ./dist/*.whl
-          
-  build_oobabooga:
-    name: Build AVX2 Wheels for Text Generation Webui
-    needs: build_wheels
-    uses: ./.github/workflows/build-wheels-oobabooga.yml
-    with:
-      version: ${{ needs.build_wheels.outputs.packagever }}
