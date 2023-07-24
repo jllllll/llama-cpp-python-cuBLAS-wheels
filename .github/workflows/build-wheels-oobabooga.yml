@@ -4,15 +4,15 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'Version tag of llama-cpp-python to build: v0.1.76'
-        default: 'v0.1.76'
+        description: 'Version tag of llama-cpp-python to build: v0.1.77'
+        default: 'v0.1.77'
         required: false
         type: string
   workflow_call:
     inputs:
       version:
-        description: 'Version tag of llama-cpp-python to build: v0.1.76'
-        default: 'v0.1.76'
+        description: 'Version tag of llama-cpp-python to build: v0.1.77'
+        default: 'v0.1.77'
         required: false
         type: string
 
