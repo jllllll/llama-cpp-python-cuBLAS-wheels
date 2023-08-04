@@ -3,8 +3,8 @@ name: Build ROCm Windows Wheel
 on: workflow_dispatch
 
 jobs:
-  build_wheels:
-    name: Build ROCm wheel
+  build_libs:
+    name: Build ROCm Lib
     runs-on: windows-latest
     defaults:
       run:
@@ -13,12 +13,7 @@ jobs:
     steps:
       - uses: actions/checkout@v3
         with:
-          repository: 'abetlen/llama-cpp-python'
-          ref: 'v0.1.77'
-      - uses: actions/checkout@v3
-        with:
           repository: 'SlyEcho/llama.cpp'
-          path: 'vendor/llama.cpp'
           ref: 'hipblas'
           
       - name: Install ROCm SDK
@@ -32,26 +27,58 @@ jobs:
           
       - uses: actions/setup-python@v3
         with:
-          python-version: ${{ matrix.pyver }}
+          python-version: "3.10"
           
       - name: Install Dependencies
         run: |
-          python -m pip install build wheel cmake scikit-build ninja
+          python -m pip install cmake ninja
         
-      - name: Build Wheel
+      - name: Build Lib
         run: |
           $env:CC = 'C:\Program Files\AMD\ROCm\5.5\bin\clang.exe'
           $env:CXX = 'C:\Program Files\AMD\ROCm\5.5\bin\clang++.exe'
           $env:CMAKE_PREFIX_PATH = 'C:\Program Files\AMD\ROCm\5.5'
           $env:VERBOSE = '1'
-          pushd '.\vendor\llama.cpp'
-          cmake -B build -G "Ninja" -DLLAMA_HIPBLAS=ON "-DCMAKE_HIP_ARCHITECTURES=gfx1030;gfx1100" -DBUILD_SHARED_LIBS=ON
+          cmake -B build -G "Ninja" -DLLAMA_HIPBLAS=ON -DCMAKE_HIP_ARCHITECTURES="gfx1030;gfx1100" -DBUILD_SHARED_LIBS=ON
           cmake --build build --config Release --target llama
-          Copy-Item '.\build\bin\Release\llama.dll' '..\..\llama_cpp'
-          popd
+        
+      - uses: actions/upload-artifact@v3
+        with:
+          name: 'lib'
+          path: ./**/llama.dll
+          
+  build_wheel:
+    name: Build ROCm Lib
+    runs-on: windows-latest
+    needs: build_libs
+    defaults:
+      run:
+        shell: pwsh
+
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          repository: 'abetlen/llama-cpp-python'
+          ref: 'v0.1.77'
+          
+      - uses: actions/download-artifact@v3
+        with:
+          name: 'lib'
+          path: ./llama_cpp
+          
+      - uses: actions/setup-python@v3
+        with:
+          python-version: "3.10"
+          
+      - name: Install Dependencies
+        run: |
+          python -m pip install build wheel cmake scikit-build ninja
+        
+      - name: Build Lib
+        run: |
           python setup.py --skip-cmake bdist_wheel egg_info --tag-build=+rocm5.5.1
         
       - uses: actions/upload-artifact@v3
         with:
-          name: 'wheels'
-          path: ./dist/*.whl
+          name: 'lib'
+          path: ./**/llama.dll
