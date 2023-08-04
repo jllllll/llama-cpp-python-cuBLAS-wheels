@@ -40,9 +40,12 @@ jobs:
         
       - name: Build Wheel
         run: |
+          $env:CC = 'C:\Program Files\AMD\ROCm\5.5\bin\clang.exe'
+          $env:CXX = 'C:\Program Files\AMD\ROCm\5.5\bin\clang++.exe'
+          $env:CMAKE_PREFIX_PATH = 'C:\Program Files\AMD\ROCm\5.5'
           $env:VERBOSE = '1'
           pushd '.\vendor\llama.cpp'
-          cmake -B build -G "Ninja" -DCMAKE_C_COMPILER="C:\\Program Files\\AMD\\ROCm\\5.5\\bin\\clang.exe" -DCMAKE_CXX_COMPILER="C:\\Program Files\\AMD\\ROCm\\5.5\\bin\\clang++.exe" -DLLAMA_HIPBLAS=ON "-DCMAKE_HIP_ARCHITECTURES=gfx1030;gfx1100" -DCMAKE_PREFIX_PATH="C:\Program Files\AMD\ROCm\5.5" -DBUILD_SHARED_LIBS=ON
+          cmake -B build -G "Ninja" -DLLAMA_HIPBLAS=ON "-DCMAKE_HIP_ARCHITECTURES=gfx1030;gfx1100" -DBUILD_SHARED_LIBS=ON
           cmake --build build --config Release --target llama
           Copy-Item '.\build\bin\Release\llama.dll' '..\..\llama_cpp'
           popd
