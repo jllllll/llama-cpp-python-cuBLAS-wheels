@@ -25,7 +25,8 @@ jobs:
           curl -LO https://download.amd.com/developer/eula/rocm-hub/AMD-Software-PRO-Edition-23.Q3-Win10-Win11-For-HIP.exe
           Start-Process 'AMD-Software-PRO-Edition-23.Q3-Win10-Win11-For-HIP.exe' -ArgumentList '-install' -NoNewWindow -Wait
           echo "C:\Program Files\AMD\ROCm\5.5\bin" >> $env:GITHUB_PATH
-          echo "ROCM_PATH=C:\Program Files\AMD\ROCm\5.5" >> $env:GITHUB_ENV
+          echo 'ROCM_PATH="C:\Program Files\AMD\ROCm\5.5"' >> $env:GITHUB_ENV
+          echo 'HIP_PATH="C:\Program Files\AMD\ROCm\5.5"' >> $env:GITHUB_ENV
           echo "ROCM_VERSION=5.5.1" >> $env:GITHUB_ENV
           
       - uses: actions/setup-python@v3
@@ -38,9 +39,11 @@ jobs:
         
       - name: Build Wheel
         run: |
+          $env:CC = 'C:\Program Files\AMD\ROCm\5.5\bin\clang.exe'
+          $env:CXX = 'C:\Program Files\AMD\ROCm\5.5\bin\clang++.exe'
           $env:VERBOSE = '1'
           $env:FORCE_CMAKE = '1'
-          $env:CMAKE_ARGS = '-DLLAMA_HIPBLAS=on -DCMAKE_HIP_ARCHITECTURES=gfx1030;gfx1100 -DCMAKE_PREFIX_PATH="C:\Program Files\AMD\ROCm\5.5"'
+          $env:CMAKE_ARGS = "-DLLAMA_HIPBLAS=ON -DCMAKE_HIP_ARCHITECTURES=gfx1030;gfx1100 -DCMAKE_PREFIX_PATH=`"${env:ROCM_PATH}`""
           python3 -m build -n --wheel -C--build-option=egg_info "-C--build-option=--tag-build=+rocm5.5.1"
         
       - uses: actions/upload-artifact@v3
