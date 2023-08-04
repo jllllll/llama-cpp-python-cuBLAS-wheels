@@ -35,16 +35,17 @@ jobs:
           
       - name: Install Dependencies
         run: |
-          pip3 install build wheel cmake scikit-build ninja
+          python -m pip install build wheel cmake scikit-build ninja
         
       - name: Build Wheel
         run: |
-          $env:CC = 'C:\Program Files\AMD\ROCm\5.5\bin\clang.exe'
-          $env:CXX = 'C:\Program Files\AMD\ROCm\5.5\bin\clang++.exe'
           $env:VERBOSE = '1'
-          $env:FORCE_CMAKE = '1'
-          $env:CMAKE_ARGS = "-DLLAMA_HIPBLAS=ON -DCMAKE_HIP_ARCHITECTURES=gfx1030;gfx1100 -DCMAKE_PREFIX_PATH=`"${env:ROCM_PATH}`""
-          python3 -m build -n --wheel -C--build-option=egg_info "-C--build-option=--tag-build=+rocm5.5.1"
+          pushd '.\vendor\llama.cpp'
+          cmake -B build -DLLAMA_HIPBLAS=ON "-DCMAKE_HIP_ARCHITECTURES=gfx1030;gfx1100" -DCMAKE_PREFIX_PATH="C:\Program Files\AMD\ROCm\5.5" -DBUILD_SHARED_LIBS=ON
+          cmake --build build --config Release --target llama
+          Copy-Item '.\build\bin\Release\llama.dll' '..\..\llama_cpp'
+          popd
+          python setup.py --skip-cmake bdist_wheel egg_info --tag-build=+rocm5.5.1
         
       - uses: actions/upload-artifact@v3
         with:
