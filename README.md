@@ -8,6 +8,7 @@ Requirements:
 - CPU with support for AVX, AVX2 or AVX512
 - CUDA 11.6 - 12.2
 - CPython 3.7 - 3.11
+- Experimental Windows ROCm build for AMD GPUs: https://github.com/jllllll/llama-cpp-python-cuBLAS-wheels/releases/tag/rocm
 
 Installation instructions:
 ---
