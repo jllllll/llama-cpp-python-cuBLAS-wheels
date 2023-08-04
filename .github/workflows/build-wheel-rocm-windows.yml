@@ -19,6 +19,7 @@ jobs:
         with:
           repository: 'SlyEcho/llama.cpp'
           path: 'vendor/llama.cpp'
+          ref: 'hipblas'
           
       - name: Install ROCm SDK
         run: |
