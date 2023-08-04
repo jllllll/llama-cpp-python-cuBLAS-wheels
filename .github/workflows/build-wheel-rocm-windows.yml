@@ -45,12 +45,15 @@ jobs:
       - uses: actions/upload-artifact@v3
         with:
           name: 'lib'
-          path: ./**/llama.dll
+          path: ./build/bin/llama.dll
           
   build_wheel:
-    name: Build ROCm Lib
+    name: Build ROCm Wheels
     runs-on: windows-latest
     needs: build_libs
+    strategy:
+      matrix:
+        pyver: ["3.8", "3.9", "3.10", "3.11"]
     defaults:
       run:
         shell: pwsh
@@ -68,17 +71,19 @@ jobs:
           
       - uses: actions/setup-python@v3
         with:
-          python-version: "3.10"
+          python-version: ${{ matrix.pyver }}
           
       - name: Install Dependencies
         run: |
           python -m pip install build wheel cmake scikit-build ninja
         
-      - name: Build Lib
+      - name: Build Wheel
         run: |
+          $newsetup = (Get-Content 'setup.py' -raw).Replace("packages=[`"llama_cpp`", `"llama_cpp.server`"],","packages=[`"llama_cpp`", `"llama_cpp.server`"],`n    package_data={'llama_cpp': ['llama.dll']},")
+          New-Item 'setup.py' -itemType File -value $newsetup -force
           python setup.py --skip-cmake bdist_wheel egg_info --tag-build=+rocm5.5.1
         
       - uses: actions/upload-artifact@v3
         with:
-          name: 'lib'
-          path: ./**/llama.dll
+          name: 'wheels'
+          path: ./dist/*.whl
