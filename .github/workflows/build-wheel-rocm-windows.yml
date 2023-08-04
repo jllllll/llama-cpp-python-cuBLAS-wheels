@@ -1,0 +1,49 @@
+name: Build ROCm Windows Wheel
+
+on: workflow_dispatch
+
+jobs:
+  build_wheels:
+    name: Build ROCm wheel
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: pwsh
+
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          repository: 'abetlen/llama-cpp-python'
+          ref: 'v0.1.77'
+      - uses: actions/checkout@v3
+        with:
+          repository: 'SlyEcho/llama.cpp'
+          path: 'vendor/llama.cpp'
+          
+      - name: Install ROCm SDK
+        run: |
+          curl -LO https://download.amd.com/developer/eula/rocm-hub/AMD-Software-PRO-Edition-23.Q3-Win10-Win11-For-HIP.exe
+          Start-Process 'AMD-Software-PRO-Edition-23.Q3-Win10-Win11-For-HIP.exe' -ArgumentList '-install' -NoNewWindow -Wait
+          echo "C:\Program Files\AMD\ROCm\5.5\bin" >> $env:GITHUB_PATH
+          echo "ROCM_PATH=C:\Program Files\AMD\ROCm\5.5" >> $env:GITHUB_ENV
+          echo "ROCM_VERSION=5.5.1" >> $env:GITHUB_ENV
+          
+      - uses: actions/setup-python@v3
+        with:
+          python-version: ${{ matrix.pyver }}
+          
+      - name: Install Dependencies
+        run: |
+          pip3 install build wheel cmake scikit-build ninja
+        
+      - name: Build Wheel
+        run: |
+          $env:VERBOSE = '1'
+          $env:FORCE_CMAKE = '1'
+          $env:CMAKE_ARGS = '-DLLAMA_HIPBLAS=on -DCMAKE_HIP_ARCHITECTURES=gfx1030;gfx1100 -DCMAKE_PREFIX_PATH="C:\Program Files\AMD\ROCm\5.5"'
+          python3 -m build -n --wheel -C--build-option=egg_info "-C--build-option=--tag-build=+rocm5.5.1"
+        
+      - uses: actions/upload-artifact@v3
+        with:
+          name: 'wheels'
+          path: ./dist/*.whl
