@@ -1,0 +1,45 @@
+name: Batch Build Wheels
+
+on:
+  workflow_dispatch:
+    inputs:
+      versions:
+        description: 'Comma-seperated version tags of llama-cpp-python to build'
+        default: 'v0.1.77,v0.1.76'
+        required: true
+        type: string
+
+permissions:
+  contents: write
+  
+jobs:
+  define_matrix:
+    name: Define Workflow Matrix
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
+    defaults:
+      run:
+        shell: pwsh
+    env:
+      PCKGVERS: ${{ inputs.versions }}
+        
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Define Job Output
+        id: set-matrix
+        run: |
+          $x = $env:PCKGVERS.Split(',').Trim() -Join ', '
+          Write-Output "matrix={`"node`":[$x]}" >> $env:GITHUB_OUTPUT
+          
+  run_workflows:
+    name: Build ${{ matrix.version }} CPU-only Wheels
+    needs: define_matrix
+    strategy:
+      max-parallel: 1
+      matrix:
+        version: ${{ fromJSON(needs.define_matrix.outputs.matrix) }}
+    uses: ./.github/workflows/build-wheels-cpu.yml
+    with:
+      version: ${{ matrix.version }}
