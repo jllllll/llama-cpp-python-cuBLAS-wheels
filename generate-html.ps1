@@ -24,7 +24,8 @@ Foreach ($avxVersion in $avxVersions)
 		$cuContent = "<!DOCTYPE html>`n<html>`n  <body>`n    "
 		ForEach ($packageVersion in $packageVersions)
 		{
-			if (($avxVersion -eq 'basic' -or $cudaVersion -eq 'cpu') -and $packageVersion -ne '0.1.77') {continue}
+			if ($avxVersion -eq 'basic' -and $cudaVersion -ne 'cpu' -and $packageVersion -ne '0.1.77') {continue}
+			if (($avxVersion -eq 'basic' -or $cudaVersion -eq 'cpu') -and $packageVersion -notin $("0.1.70","0.1.71","0.1.72","0.1.73","0.1.74","0.1.76","0.1.77")) {continue}
 			ForEach ($pythonVersion in $pythonVersions)
 			{
 				$pyVer = $pythonVersion.replace('.','')
