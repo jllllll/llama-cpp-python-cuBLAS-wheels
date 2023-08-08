@@ -1,6 +1,20 @@
 name: Build ROCm Windows Wheel
 
-on: workflow_dispatch
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version tag of llama-cpp-python to build: v0.1.77'
+        default: 'v0.1.77'
+        required: false
+        type: string
+  workflow_call:
+    inputs:
+      version:
+        description: 'Version tag of llama-cpp-python to build: v0.1.77'
+        default: 'v0.1.77'
+        required: false
+        type: string
 
 jobs:
   build_libs:
@@ -62,7 +76,7 @@ jobs:
       - uses: actions/checkout@v3
         with:
           repository: 'abetlen/llama-cpp-python'
-          ref: 'v0.1.77'
+          ref: ${{ inputs.version }}
           
       - uses: actions/download-artifact@v3
         with:

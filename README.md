@@ -17,7 +17,9 @@ python -m pip install llama-cpp-python --prefer-binary --extra-index-url=https:/
 This will install the latest llama-cpp-python version available from here for CUDA 11.7. You can change `cu117` to change the CUDA version.  
 You can also change `AVX2` to `AVX`, `AVX512` or `basic` based on what your CPU supports.  
 `basic` is a build without `AVX`, `FMA` and `F16C` instructions for old or basic CPUs.  
-CPU-only builds are also available by changing `cu117` to `cpu`. `basic` and `cpu` builds are currently only available for 0.1.77+.
+CPU-only builds are also available by changing `cu117` to `cpu`.
+
+`basic` and `cpu` builds are currently only available for 0.1.77+.
 
 You can install a specific version with:
 ```

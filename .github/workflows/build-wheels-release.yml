@@ -1,0 +1,35 @@
+name: Build Wheels for New Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      versions:
+        description: 'Version tag of llama-cpp-python to build: v0.1.77'
+        default: 'v0.1.77'
+        required: true
+        type: string
+
+permissions:
+  contents: write
+  
+jobs:
+  run_main:
+    name: Build ${{ matrix.version }} CUDA Wheels
+    needs: define_matrix
+    uses: ./.github/workflows/build-wheels.yml
+    with:
+      version: ${{ matrix.version }}
+      
+  run_ooba:
+    name: Build ${{ matrix.version }} CUDA Wheels for Text Generation Webui
+    needs: run_main
+    uses: ./.github/workflows/build-wheels-oobabooga.yml
+    with:
+      version: ${{ matrix.version }}
+      
+  run_rocm:
+    name: Build ${{ matrix.version }} Build ROCm 5.5.1 Windows Wheels
+    needs: run_ooba
+    uses: ./.github/workflows/build-wheel-rocm-windows.yml
+    with:
+      version: ${{ matrix.version }}
