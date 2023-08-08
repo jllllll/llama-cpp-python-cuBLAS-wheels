@@ -19,7 +19,7 @@ You can also change `AVX2` to `AVX`, `AVX512` or `basic` based on what your CPU 
 `basic` is a build without `AVX`, `FMA` and `F16C` instructions for old or basic CPUs.  
 CPU-only builds are also available by changing `cu117` to `cpu`.
 
-`basic` and `cpu` builds are currently only available for 0.1.77+.
+`basic` builds are currently only available for 0.1.77+.
 
 You can install a specific version with:
 ```
