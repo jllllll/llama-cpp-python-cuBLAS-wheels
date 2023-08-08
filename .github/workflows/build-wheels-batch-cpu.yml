@@ -30,8 +30,8 @@ jobs:
       - name: Define Job Output
         id: set-matrix
         run: |
-          $x = $env:PCKGVERS.Split(',').Trim() -Join ', '
-          Write-Output "matrix={`"node`":[$x]}" >> $env:GITHUB_OUTPUT
+          $x = ConvertTo-Json $env:PCKGVERS.Split(',').Trim() -Compress
+          Write-Output ('matrix=' + $x) >> $env:GITHUB_OUTPUT
           
   run_workflows:
     name: Build ${{ matrix.version }} CPU-only Wheels
