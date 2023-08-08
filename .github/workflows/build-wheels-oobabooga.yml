@@ -35,6 +35,7 @@ jobs:
     env:
       CUDAVER: ${{ matrix.cuda }}
       AVXVER: ${{ matrix.avxver }}
+      PCKGVER: ${{ inputs.version }}
 
     steps:
       - uses: actions/checkout@v3
@@ -88,6 +89,7 @@ jobs:
           
       - name: Build Wheel
         run: |
+          $packageVersion = [version]$env:PCKGVER.TrimStart('v')
           $cudaVersion = $env:CUDAVER.Remove($env:CUDAVER.LastIndexOf('.')).Replace('.','')
           $env:CUDA_PATH = $env:CONDA_PREFIX
           $env:CUDA_HOME = $env:CONDA_PREFIX
@@ -95,8 +97,12 @@ jobs:
           $env:VERBOSE = '1'
           $env:FORCE_CMAKE = '1'
           $env:CMAKE_ARGS = '-DLLAMA_CUBLAS=on -DCMAKE_CUDA_ARCHITECTURES=all'
+          if ($packageVersion -gt [version]'0.1.68' -and $packageVersion -lt [version]'0.1.70') {$env:CMAKE_ARGS = '-DLLAMA_CUBLAS=on -DCMAKE_CUDA_ARCHITECTURES=35-real;37-real;52;61-real;70-real;72-real;75-real;80-real;86-real;89-real;90'}
+          if ($packageVersion -gt [version]'0.1.68' -and $packageVersion -lt [version]'0.1.70' -and [version]$env:CUDAVER -ge [version]'12.0') {$env:CMAKE_ARGS = '-DLLAMA_CUBLAS=on -DCMAKE_CUDA_ARCHITECTURES=52;61-real;70-real;72-real;75-real;80-real;86-real;89-real;90'}
+          if ($packageVersion -gt [version]'0.1.68' -and $packageVersion -lt [version]'0.1.70' -and [version]$env:CUDAVER -lt [version]'11.8') {$env:CMAKE_ARGS = '-DLLAMA_CUBLAS=on -DCMAKE_CUDA_ARCHITECTURES=35-real;37-real;52;61-real;70-real;72-real;75-real;80-real;86'}
+          if ($packageVersion -lt [version]'0.1.66') {$env:CUDAFLAGS = '-arch=all'}
           if ($env:AVXVER -eq 'AVX') {$env:CMAKE_ARGS = $env:CMAKE_ARGS + ' -DLLAMA_AVX2=off'; $buildtag = 'AVX'}
-          python -m build --wheel -C--build-option=egg_info "-C--build-option=--tag-build=+cu$cudaVersion$buildtag"
+          if ($env:AVXVER -eq 'basic') {$env:CMAKE_ARGS = $env:CMAKE_ARGS + ' -DLLAMA_AVX=off -DLLAMA_AVX2=off -DLLAMA_FMA=off -DLLAMA_F16C=off'; $buildtag = 'basic'}
           
       - name: Upload files to a GitHub release
         id: upload-release
