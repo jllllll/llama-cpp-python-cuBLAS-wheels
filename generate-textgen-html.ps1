@@ -2,7 +2,7 @@ Set-Location $PSScriptRoot
 
 $destinationDir = if (Test-Path $(Join-Path $(Resolve-Path '.') 'index')) {Join-Path '.' 'index' -resolve} else {(New-Item 'index' -ItemType 'Directory').fullname}
 $destinationDir = if (Test-Path $(Join-Path $destinationDir 'textgen')) {Join-Path $destinationDir 'textgen'} else {(New-Item $(Join-Path $destinationDir 'textgen') -ItemType 'Directory').fullname}
-$avxVersions = "AVX","AVX2"
+$avxVersions = "AVX","AVX2","basic"
 $cudaVersions = "11.7","11.8","12.0","12.1","12.2"
 $packageVersions = "0.1.73","0.1.74","0.1.76","0.1.77"
 $pythonVersions = "3.8","3.9","3.10","3.11"
@@ -24,12 +24,15 @@ Foreach ($avxVersion in $avxVersions)
 		$cuContent = "<!DOCTYPE html>`n<html>`n  <body>`n    "
 		ForEach ($packageVersion in $packageVersions)
 		{
+			if ($avxVersion -eq 'basic' -and $packageVersion -ne '0.1.77') {continue}
 			ForEach ($pythonVersion in $pythonVersions)
 			{
 				$pyVer = $pythonVersion.replace('.','')
 				ForEach ($supportedSystem in $supportedSystems)
 				{
-					$wheel = if ($avxVersion -eq 'AVX') {"$packageName-$packageVersion+cu$cu$('avx')-cp$pyVer-cp$pyVer-$supportedSystem.whl"} else {"$packageName-$packageVersion+cu$cu-cp$pyVer-cp$pyVer-$supportedSystem.whl"}
+					$wheel = if ($avxVersion -eq 'AVX') { "$packageName-$packageVersion+cu$cu$('avx')-cp$pyVer-cp$pyVer-$supportedSystem.whl"
+					} elseif ($avxVersion -eq 'basic') { "$packageName-$packageVersion+cu$cu$('basic')-cp$pyVer-cp$pyVer-$supportedSystem.whl"
+					} else {"$packageName-$packageVersion+cu$cu-cp$pyVer-cp$pyVer-$supportedSystem.whl"}
 					if (!($packageVersion -eq '0.1.73' -and $avxVersion -eq 'AVX')) {$cuContent += "<a href=`"$wheelURL/$wheel`">$wheel</a><br/>`n    "}
 				}
 			}
