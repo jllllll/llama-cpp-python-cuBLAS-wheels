@@ -1,4 +1,4 @@
-name: Batch Build Wheels
+name: Batch Build Wheels for Text Generation Webui
 
 on:
   workflow_dispatch:

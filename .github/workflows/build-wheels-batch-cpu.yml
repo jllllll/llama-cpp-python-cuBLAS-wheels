@@ -1,4 +1,4 @@
-name: Batch Build Wheels
+name: Batch Build CPU-only Wheels
 
 on:
   workflow_dispatch:
