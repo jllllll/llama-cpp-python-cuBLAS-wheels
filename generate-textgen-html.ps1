@@ -24,7 +24,7 @@ Foreach ($avxVersion in $avxVersions)
 		$cuContent = "<!DOCTYPE html>`n<html>`n  <body>`n    "
 		ForEach ($packageVersion in $packageVersions)
 		{
-			if ($avxVersion -eq 'basic' -and $packageVersion -ne '0.1.77') {continue}
+			if ($avxVersion -eq 'basic' -and $packageVersion -eq '0.1.73') {continue}
 			ForEach ($pythonVersion in $pythonVersions)
 			{
 				$pyVer = $pythonVersion.replace('.','')
