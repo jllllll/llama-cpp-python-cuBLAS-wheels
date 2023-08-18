@@ -70,13 +70,15 @@ jobs:
           
       - name: Change Package Name
         run: |
+          $packageVersion = [version]$env:PCKGVER.TrimStart('v')
           $setup = Get-Content 'setup.py' -raw
           $pyproject = Get-Content 'pyproject.toml' -raw
           $cmakelists = Get-Content 'CMakeLists.txt' -raw
-          $regexstr = '(?s)name="llama_cpp_python",(.+)(package_dir={"llama_cpp": "llama_cpp", "llama_cpp.server": "llama_cpp/server"},)(.+?)(packages=\["llama_cpp", "llama_cpp.server"],)'
+          $regexstr = '(?s)name="llama_cpp_python",(.+)(package_dir={"llama_cpp": "llama_cpp", "llama_cpp.server": "llama_cpp/server"},.+?packages=\["llama_cpp", "llama_cpp.server"],)'
+          if ($packageVersion -gt [version]'0.1.77') {$regexstr = '(?s)name="llama_cpp_python",(.+)(package_dir={"llama_cpp": "llama_cpp", "llama_cpp.server": "llama_cpp/server"},.+?package_data={"llama_cpp": \["py.typed"]},.+?packages=\["llama_cpp", "llama_cpp.server"],)'}
           $regexmatch = [Regex]::Matches($setup,$regexstr)
           if (!($regexmatch[0].Success)) {throw 'setup.py parsing failed'}
-          $newstr = 'name="llama_cpp_python_cuda",' + $regexmatch[0].Groups[1].Value + $regexmatch[0].Groups[2].Value.Replace('llama_cpp','llama_cpp_cuda') + $regexmatch[0].Groups[3].Value + $regexmatch[0].Groups[4].Value.Replace('llama_cpp','llama_cpp_cuda')
+          $newstr = 'name="llama_cpp_python_cuda",' + $regexmatch[0].Groups[1].Value + $regexmatch[0].Groups[2].Value.Replace('llama_cpp','llama_cpp_cuda')
           $newsetup = $regexmatch[0].Result(('$`'+$newstr+'$'''))
           $regexstr = '(?s)(?<=name = ")llama_cpp_python(".+?packages = \[{include = ")llama_cpp(".+)'
           $regexmatch = [Regex]::Matches($pyproject,$regexstr)
