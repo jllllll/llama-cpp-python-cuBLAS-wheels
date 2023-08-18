@@ -4,15 +4,15 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'Version tag of llama-cpp-python to build: v0.1.77'
-        default: 'v0.1.77'
+        description: 'Version tag of llama-cpp-python to build: v0.1.78'
+        default: 'v0.1.78'
         required: false
         type: string
   workflow_call:
     inputs:
       version:
-        description: 'Version tag of llama-cpp-python to build: v0.1.77'
-        default: 'v0.1.77'
+        description: 'Version tag of llama-cpp-python to build: v0.1.78'
+        default: 'v0.1.78'
         required: false
         type: string
 
@@ -58,7 +58,7 @@ jobs:
         
       - uses: actions/upload-artifact@v3
         with:
-          name: 'lib'
+          name: 'win-rocm-lib'
           path: ./build/bin/llama.dll
           
   build_wheel:
@@ -71,6 +71,8 @@ jobs:
     defaults:
       run:
         shell: pwsh
+    env:
+      PCKGVER: ${{ inputs.version }}
 
     steps:
       - uses: actions/checkout@v3
@@ -80,7 +82,7 @@ jobs:
           
       - uses: actions/download-artifact@v3
         with:
-          name: 'lib'
+          name: 'win-rocm-lib'
           path: ./llama_cpp
           
       - uses: actions/setup-python@v3
@@ -93,11 +95,26 @@ jobs:
         
       - name: Build Wheel
         run: |
-          $newsetup = (Get-Content 'setup.py' -raw).Replace("packages=[`"llama_cpp`", `"llama_cpp.server`"],","packages=[`"llama_cpp`", `"llama_cpp.server`"],`n    package_data={'llama_cpp': ['llama.dll']},")
+          $packageVersion = [version]$env:PCKGVER.TrimStart('v')
+          $setup = Get-Content 'setup.py' -raw
+          if ($packageVersion -lt [version]'0.1.78') {$newsetup = $setup.Replace("packages=[`"llama_cpp`", `"llama_cpp.server`"],","packages=[`"llama_cpp`", `"llama_cpp.server`"],`n    package_data={'llama_cpp': ['llama.dll']},")}
+          if ($packageVersion -gt [version]'0.1.77') {$newsetup = $setup.Replace('package_data={"llama_cpp": ["py.typed"]},','package_data={"llama_cpp": ["py.typed", "llama.dll"]},')}
           New-Item 'setup.py' -itemType File -value $newsetup -force
           python setup.py --skip-cmake bdist_wheel egg_info --tag-build=+rocm5.5.1
+          
+      - name: Upload files to a GitHub release
+        id: upload-release
+        uses: svenstaro/upload-release-action@2.6.1
+        continue-on-error: true
+        with:
+          file: ./dist/*.whl
+          tag: rocm
+          file_glob: true
+          make_latest: false
+          overwrite: true
         
       - uses: actions/upload-artifact@v3
+        if: steps.upload-release.outcome == 'failure'
         with:
-          name: 'wheels'
+          name: 'win-rocm-wheels'
           path: ./dist/*.whl
