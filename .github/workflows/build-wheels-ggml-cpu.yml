@@ -1,0 +1,98 @@
+name: Build CPU-only GGML Wheels
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version tag of llama-cpp-python to build: v0.1.78'
+        default: 'v0.1.78'
+        required: false
+        type: string
+  workflow_call:
+    inputs:
+      version:
+        description: 'Version tag of llama-cpp-python to build: v0.1.78'
+        default: 'v0.1.78'
+        required: false
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  build_wheels:
+    name: ${{ matrix.os }} ${{ matrix.pyver }} CPU ${{ matrix.avx }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-20.04, windows-latest]
+        pyver: ["3.7", "3.8", "3.9", "3.10", "3.11"]
+        avx: ["AVX","AVX2","AVX512","basic"]
+    defaults:
+      run:
+        shell: pwsh
+    env:
+      AVXVER: ${{ matrix.avx }}
+      PCKGVER: ${{ inputs.version }}
+
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          repository: 'abetlen/llama-cpp-python'
+          ref: ${{ inputs.version }}
+          submodules: 'recursive'
+          
+      - uses: actions/setup-python@v3
+        with:
+          python-version: ${{ matrix.pyver }}
+          
+      - name: Install Dependencies
+        run: |
+          python -m pip install build wheel
+          
+      - name: Change Package Name
+        run: |
+          $packageVersion = [version]$env:PCKGVER.TrimStart('v')
+          $setup = Get-Content 'setup.py' -raw
+          $pyproject = Get-Content 'pyproject.toml' -raw
+          $cmakelists = Get-Content 'CMakeLists.txt' -raw
+          $regexstr = '(?s)name="llama_cpp_python",(.+)(package_dir={"llama_cpp": "llama_cpp", "llama_cpp.server": "llama_cpp/server"},.+?packages=\["llama_cpp", "llama_cpp.server"],)'
+          if ($packageVersion -gt [version]'0.1.77') {$regexstr = '(?s)name="llama_cpp_python",(.+)(package_dir={"llama_cpp": "llama_cpp", "llama_cpp.server": "llama_cpp/server"},.+?package_data={"llama_cpp": \["py.typed"]},.+?packages=\["llama_cpp", "llama_cpp.server"],)'}
+          $regexmatch = [Regex]::Matches($setup,$regexstr)
+          if (!($regexmatch[0].Success)) {throw 'setup.py parsing failed'}
+          $newstr = 'name="llama_cpp_python_ggml",' + $regexmatch[0].Groups[1].Value + $regexmatch[0].Groups[2].Value.Replace('llama_cpp','llama_cpp_ggml')
+          $newsetup = $regexmatch[0].Result(('$`'+$newstr+'$'''))
+          $regexstr = '(?s)(?<=name = ")llama_cpp_python(".+?packages = \[{include = ")llama_cpp(".+)'
+          $regexmatch = [Regex]::Matches($pyproject,$regexstr)
+          if (!($regexmatch[0].Success)) {throw 'pyproject.toml parsing failed'}
+          $newpyproject = $regexmatch[0].Result(('$`'+'llama_cpp_python_ggml'+'$1llama_cpp_ggml$2'))
+          Copy-Item 'llama_cpp' 'llama_cpp_ggml' -recurse
+          New-Item 'setup.py' -itemType File -value $newsetup -force
+          New-Item 'pyproject.toml' -itemType File -value $newpyproject -force
+          New-Item 'CMakeLists.txt' -itemType File -value $cmakelists.Replace('llama_cpp','llama_cpp_ggml') -force
+          
+      - name: Build Wheel
+        run: |
+          $env:VERBOSE = '1'
+          $env:FORCE_CMAKE = '1'
+          if ($env:AVXVER -eq 'AVX') {$env:CMAKE_ARGS = '-DLLAMA_AVX2=off'}
+          if ($env:AVXVER -eq 'AVX512') {$env:CMAKE_ARGS = '-DLLAMA_AVX512=on'}
+          if ($env:AVXVER -eq 'basic') {$env:CMAKE_ARGS = '-DLLAMA_AVX=off -DLLAMA_AVX2=off -DLLAMA_FMA=off -DLLAMA_F16C=off'}
+          python -m build --wheel -C--build-option=egg_info "-C--build-option=--tag-build=+cpu$env:AVXVER"
+          
+      - name: Upload files to a GitHub release
+        id: upload-release
+        uses: svenstaro/upload-release-action@2.6.1
+        continue-on-error: true
+        with:
+          file: ./dist/*.whl
+          tag: 'cpu'
+          file_glob: true
+          make_latest: false
+          overwrite: true
+        
+      - uses: actions/upload-artifact@v3
+        if: steps.upload-release.outcome == 'failure'
+        with:
+          name: cpu
+          path: ./dist/*.whl
