@@ -45,4 +45,13 @@ python -m pip install llama-cpp-python --prefer-binary --upgrade --extra-index-u
 Wheels can be manually downloaded from: https://jllllll.github.io/llama-cpp-python-cuBLAS-wheels
 
 ---
+llama.cpp, and eventually llama-cpp-python, has migrated to using the new GGUF format and has dropped support for GGML.  
+I have renamed llama-cpp-python packages available to ease the transition to GGUF.  
+This is accomplished by installing the renamed package alongside the main llama-cpp-python package.  
+This should allow applications to maintain GGML support when llama-cpp-python eventually drops GGML support.
+```
+python -m pip install llama-cpp-python-ggml --prefer-binary --extra-index-url=https://jllllll.github.io/llama-cpp-python-cuBLAS-wheels/AVX2/cu117
+```
+
+---
 ### All wheels are compiled using GitHub Actions

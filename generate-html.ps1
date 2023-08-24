@@ -9,6 +9,9 @@ $supportedSystems = 'linux_x86_64','win_amd64'
 $wheelSource = 'https://github.com/jllllll/llama-cpp-python-cuBLAS-wheels/releases/download'
 $packageName = 'llama_cpp_python'
 $packageNameNormalized = 'llama-cpp-python'
+$packageNameAlt = 'llama_cpp_python_ggml'
+$packageNameAltNormalized = 'llama-cpp-python-ggml'
+$packageAltVersions = @("0.1.78")
 
 $avxVersions.foreach({Set-Variable "$_`Dir" $(if (Test-Path $(Join-Path $destinationDir $_)) {Join-Path $destinationDir $_} else {(New-Item $(Join-Path $destinationDir $_) -ItemType 'Directory').fullname})})
 
@@ -22,6 +25,7 @@ Foreach ($avxVersion in $avxVersions)
 		$cu = if ($cudaVersion -eq 'cpu') {$cudaVersion} else {'cu' + $cudaVersion.replace('.','')}
 		if ($cudaVersion -eq 'cpu') {$wheelURL = $wheelSource.TrimEnd('/') + '/cpu'}
 		$cuContent = "<!DOCTYPE html>`n<html>`n  <body>`n    "
+		$cuContentAlt = "<!DOCTYPE html>`n<html>`n  <body>`n    "
 		ForEach ($packageVersion in $packageVersions)
 		{
 			if (($avxVersion -eq 'basic' -or $cudaVersion -eq 'cpu') -and [version]$packageVersion -lt [version]"0.1.70") {continue}
@@ -32,17 +36,22 @@ Foreach ($avxVersion in $avxVersions)
 				{
 					$wheelTag = if ($cudaVersion -eq 'cpu') {"+cpu$($avxVersion.ToLower())"} else {"+$cu"}
 					$wheel = if ($pyVer -eq '37') {"$packageName-$packageVersion$wheelTag-cp$pyVer-cp$pyVer`m-$supportedSystem.whl"} else {"$packageName-$packageVersion$wheelTag-cp$pyVer-cp$pyVer-$supportedSystem.whl"}
+					$wheelAlt = if ($pyVer -eq '37') {"$packageNameAlt-$packageVersion$wheelTag-cp$pyVer-cp$pyVer`m-$supportedSystem.whl"} else {"$packageNameAlt-$packageVersion$wheelTag-cp$pyVer-cp$pyVer-$supportedSystem.whl"}
 					$cuContent += "<a href=`"$wheelURL/$wheel`">$wheel</a><br/>`n    "
+					if ($packageVersion -in $packageAltVersions) {$cuContentAlt += "<a href=`"$wheelURL/$wheelAlt`">$wheelAlt</a><br/>`n    "}
 				}
 			}
 			$cuContent += "`n    "
+			if ($packageVersion -in $packageAltVersions) {$cuContentAlt += "`n    "}
 		}
 		$cuDir = if (Test-Path $(Join-Path $(Get-Variable "$avxVersion`Dir").Value "$cu")) {Join-Path $(Get-Variable "$avxVersion`Dir").Value "$cu"} else {(New-Item $(Join-Path $(Get-Variable "$avxVersion`Dir").Value "$cu") -ItemType 'Directory').fullname}
 		$packageDir = if (Test-Path $(Join-Path $cuDir $packageNameNormalized)) {Join-Path $cuDir $packageNameNormalized} else {(New-Item $(Join-Path $cuDir $packageNameNormalized) -ItemType 'Directory').fullname}
+		$packageAltDir = if (Test-Path $(Join-Path $cuDir $packageNameAltNormalized)) {Join-Path $cuDir $packageNameAltNormalized} else {(New-Item $(Join-Path $cuDir $packageNameAltNormalized) -ItemType 'Directory').fullname}
 		$cuLabel = if ($cudaVersion -eq 'cpu') {$cudaVersion} else {"CUDA $cudaVersion"}
 		$subIndexContent += "<a href=`"$cu/`">$cuLabel</a><br/>`n    "
 		New-Item $(Join-Path $packageDir "index.html") -itemType File -value $($cuContent.TrimEnd() + "`n  </body>`n</html>`n") -force > $null
-		New-Item $(Join-Path $cuDir "index.html") -itemType File -value $("<!DOCTYPE html>`n<html>`n  <body>`n    <a href=`"$packageNameNormalized/`">$packageName</a>`n  </body>`n</html>`n") -force > $null
+		New-Item $(Join-Path $packageAltDir "index.html") -itemType File -value $($cuContentAlt.TrimEnd() + "`n  </body>`n</html>`n") -force > $null
+		New-Item $(Join-Path $cuDir "index.html") -itemType File -value $("<!DOCTYPE html>`n<html>`n  <body>`n    <a href=`"$packageNameNormalized/`">$packageName</a>`n    <a href=`"$packageNameAltNormalized/`">$packageNameAlt</a>`n  </body>`n</html>`n") -force > $null
 		if ($avxVersion -eq 'AVX2') {New-Item $(Join-Path $destinationDir "$cu.html") -itemType File -value $($cuContent.TrimEnd() + "`n  </body>`n</html>`n") -force > $null}
 	}
 	$indexContent += "<a href=`"$avxVersion/`">$avxVersion</a><br/>`n    "
