@@ -6,6 +6,9 @@ Requirements:
 - CUDA 11.6 - 12.2
 - CPython 3.7 - 3.11
 
+llama.cpp, and llama-cpp-python by extension, has migrated to using the new GGUF format and has dropped support for GGML.
+This applies to version 0.1.79+.
+
 Experimental Windows ROCm build for AMD GPUs: https://github.com/jllllll/llama-cpp-python-cuBLAS-wheels/releases/tag/rocm
 
 Installation instructions:
@@ -45,7 +48,6 @@ python -m pip install llama-cpp-python --prefer-binary --upgrade --extra-index-u
 Wheels can be manually downloaded from: https://jllllll.github.io/llama-cpp-python-cuBLAS-wheels
 
 ---
-llama.cpp, and eventually llama-cpp-python, has migrated to using the new GGUF format and has dropped support for GGML.  
 I have renamed llama-cpp-python packages available to ease the transition to GGUF.  
 This is accomplished by installing the renamed package alongside the main llama-cpp-python package.  
 This should allow applications to maintain GGML support when llama-cpp-python eventually drops GGML support.
