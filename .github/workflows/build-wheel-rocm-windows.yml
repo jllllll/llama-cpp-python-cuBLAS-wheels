@@ -27,8 +27,9 @@ jobs:
     steps:
       - uses: actions/checkout@v3
         with:
-          repository: 'SlyEcho/llama.cpp'
-          ref: 'hipblas'
+          repository: 'abetlen/llama-cpp-python'
+          ref: ${{ inputs.version }}
+          submodules: 'recursive'
           
       - name: Install ROCm SDK
         run: |
@@ -53,13 +54,17 @@ jobs:
           $env:CXX = 'C:\Program Files\AMD\ROCm\5.5\bin\clang++.exe'
           $env:CMAKE_PREFIX_PATH = 'C:\Program Files\AMD\ROCm\5.5'
           $env:VERBOSE = '1'
-          cmake -B build -G "Ninja" -DLLAMA_HIPBLAS=ON -DCMAKE_HIP_ARCHITECTURES="gfx1030;gfx1100" -DBUILD_SHARED_LIBS=ON
+          $env:GPU_TARGETS = 'all'
+          mkdir 'build'
+          Set-Location '.\vendor\llama.cpp'
+          cmake -B build -G "Ninja" -DLLAMA_HIPBLAS=ON -DBUILD_SHARED_LIBS=ON
           cmake --build build --config Release --target llama
+          Copy-Item '.\build\bin\llama.dll' '..\..\build'
         
       - uses: actions/upload-artifact@v3
         with:
           name: 'win-rocm-lib'
-          path: ./build/bin/llama.dll
+          path: ./build/llama.dll
           
   build_wheel:
     name: Build ROCm Wheels
