@@ -53,7 +53,7 @@ Foreach ($avxVersion in $avxVersions)
 		$subIndexContent += "<a href=`"cu$cu/`">CUDA $cudaVersion</a><br/>`n    "
 		New-Item $(Join-Path $packageDir "index.html") -itemType File -value $($cuContent.TrimEnd() + "`n  </body>`n</html>`n") -force > $null
 		New-Item $(Join-Path $packageAltDir "index.html") -itemType File -value $($cuContentAlt.TrimEnd() + "`n  </body>`n</html>`n") -force > $null
-		New-Item $(Join-Path $cuDir "index.html") -itemType File -value $("<!DOCTYPE html>`n<html>`n  <body>`n    <a href=`"$packageNameNormalized/`">$packageName</a>`n    <a href=`"$packageNameAltNormalized/`">$packageNameAlt</a>`n  </body>`n</html>`n") -force > $null
+		New-Item $(Join-Path $cuDir "index.html") -itemType File -value $("<!DOCTYPE html>`n<html>`n  <body>`n    <a href=`"$packageNameNormalized/`">$packageName</a><br/>`n    <a href=`"$packageNameAltNormalized/`">$packageNameAlt</a>`n  </body>`n</html>`n") -force > $null
 	}
 	$indexContent += "<a href=`"$avxVersion/`">$avxVersion</a><br/>`n    "
 	New-Item $(Join-Path $(Get-Variable "$avxVersion`Dir").Value "index.html") -itemType File -value $($subIndexContent.TrimEnd() + "`n  </body>`n</html>`n") -force > $null
