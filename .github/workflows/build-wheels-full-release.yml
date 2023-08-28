@@ -13,22 +13,22 @@ permissions:
   contents: write
   
 jobs:
-  run_ooba:
-    name: Build ${{ inputs.version }} CUDA Wheels for Text Generation Webui
-    uses: ./.github/workflows/build-wheels-oobabooga.yml
-    with:
-      version: ${{ inputs.version }}
-      
   run_main:
     name: Build ${{ inputs.version }} CUDA Wheels
-    needs: run_ooba
     uses: ./.github/workflows/build-wheels.yml
     with:
       version: ${{ inputs.version }}
       
-  run_rocm:
-    name: Build ${{ inputs.version }} Build ROCm 5.5.1 Windows Wheels
+  run_ooba:
+    name: Build ${{ inputs.version }} CUDA Wheels for Text Generation Webui
     needs: run_main
+    uses: ./.github/workflows/build-wheels-oobabooga.yml
+    with:
+      version: ${{ inputs.version }}
+      
+  run_rocm:
+    name: Build ROCm 5.5.1 Windows Wheels ${{ inputs.version }}
+    needs: run_ooba
     uses: ./.github/workflows/build-wheel-rocm-windows.yml
     with:
       version: ${{ inputs.version }}
