@@ -406,7 +406,7 @@ jobs:
       
   build_wheels_rocm:
     name: Build ROCm 5.5.1 Windows Wheels
-    needs: build_wheels_cpu
+    needs: build_textgen_wheels
     uses: ./.github/workflows/build-wheel-rocm-windows.yml
     with:
       version: ${{ inputs.version }}
