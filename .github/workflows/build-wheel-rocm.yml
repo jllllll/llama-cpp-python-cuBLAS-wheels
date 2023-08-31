@@ -74,6 +74,8 @@ jobs:
         run: |
           $env:CC = '/opt/rocm/llvm/bin/clang'
           $env:CXX = '/opt/rocm/llvm/bin/clang++'
+          $env:CFLAGS = '-fPIC'
+          $env:CXXFLAGS = '-fPIC'
           $env:CMAKE_PREFIX_PATH = '/opt/rocm'
           $env:VERBOSE = '1'
           mkdir 'build'
