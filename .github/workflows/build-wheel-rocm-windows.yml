@@ -57,10 +57,9 @@ jobs:
           $env:CXX = 'C:\Program Files\AMD\ROCm\5.5\bin\clang++.exe'
           $env:CMAKE_PREFIX_PATH = 'C:\Program Files\AMD\ROCm\5.5'
           $env:VERBOSE = '1'
-          $env:GPU_TARGETS = 'gfx803;gfx900;gfx906:xnack-;gfx908:xnack-;gfx90a:xnack+;gfx90a:xnack-;gfx1010;gfx1012;gfx1030;gfx1100;gfx1101;gfx1102'
           mkdir 'build'
           Set-Location '.\vendor\llama.cpp'
-          cmake -B build -G "Ninja" -DLLAMA_HIPBLAS=ON -DBUILD_SHARED_LIBS=ON
+          cmake -B build -G "Ninja" -DLLAMA_HIPBLAS=ON -DBUILD_SHARED_LIBS=ON '-DGPU_TARGETS=gfx803;gfx900;gfx906:xnack-;gfx908:xnack-;gfx90a:xnack+;gfx90a:xnack-;gfx1010;gfx1012;gfx1030;gfx1100;gfx1101;gfx1102'
           cmake --build build --config Release --target llama
           Copy-Item '.\build\bin\llama.dll' '..\..\build'
         
