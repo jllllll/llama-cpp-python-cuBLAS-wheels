@@ -27,8 +27,8 @@ jobs:
       version: ${{ inputs.version }}
       
   run_rocm:
-    name: Build ROCm 5.5.1 Windows Wheels ${{ inputs.version }}
+    name: Build ROCm Wheels
     needs: run_ooba
-    uses: ./.github/workflows/build-wheel-rocm-windows.yml
+    uses: ./.github/workflows/build-wheels-rocm-full.yml
     with:
       version: ${{ inputs.version }}

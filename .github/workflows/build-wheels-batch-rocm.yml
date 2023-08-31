@@ -42,6 +42,6 @@ jobs:
       max-parallel: 1
       matrix:
         version: ${{ fromJSON(needs.define_matrix.outputs.matrix) }}
-    uses: ./.github/workflows/build-wheel-rocm.yml
+    uses: ./.github/workflows/build-wheels-rocm-full.yml
     with:
       version: ${{ matrix.version }}
