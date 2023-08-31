@@ -3,13 +3,13 @@ Wheels for [llama-cpp-python](https://github.com/abetlen/llama-cpp-python) compi
 
 Requirements:
 - Windows and Linux x86_64
-- CUDA 11.6 - 12.2
+- CUDA 11.6 - 12.2 or a ROCm-compatible AMD GPU
 - CPython 3.7 - 3.11
 
 llama.cpp, and llama-cpp-python by extension, has migrated to using the new GGUF format and has dropped support for GGML.
 This applies to version 0.1.79+.
 
-Experimental Windows ROCm build for AMD GPUs: https://github.com/jllllll/llama-cpp-python-cuBLAS-wheels/releases/tag/rocm
+ROCm builds for AMD GPUs: https://github.com/jllllll/llama-cpp-python-cuBLAS-wheels/releases/tag/rocm
 
 Installation instructions:
 ---

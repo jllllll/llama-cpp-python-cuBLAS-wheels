@@ -1,16 +1,44 @@
-name: Build ROCm 5.4.2 Wheels
+name: Build ROCm Wheels
 
-on: workflow_dispatch
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version tag of llama-cpp-python to build: v0.1.83'
+        default: 'v0.1.83'
+        required: true
+        type: string
+  workflow_call:
+    inputs:
+      version:
+        description: 'Version tag of llama-cpp-python to build: v0.1.83'
+        default: 'v0.1.83'
+        required: true
+        type: string
+
+permissions:
+  contents: write
 
 jobs:
-  build_wheels:
-    name: Build ROCm wheel
+  build_lib_lin:
+    name: Build ROCm Lib Linux
     runs-on: ubuntu-20.04
+    strategy:
+      matrix:
+        rocm: ['5.4.2','5.5','5.6.1']
     defaults:
       run:
         shell: pwsh
+    env:
+      ROCM_VERSION: ${{ matrix.rocm }}
 
     steps:
+      - uses: actions/checkout@v3
+        with:
+          repository: 'abetlen/llama-cpp-python'
+          ref: ${{ inputs.version }}
+          submodules: 'recursive'
+          
       - name: Free Disk Space
         uses: jlumbroso/free-disk-space@v1.2.0
         with:
@@ -20,25 +48,129 @@ jobs:
           haskell: true
           large-packages: false
           swap-storage: false
-    
-      - uses: actions/checkout@v3
-        with:
-          repository: 'abetlen/llama-cpp-python'
-          ref: 'v0.1.72'
-          submodules: 'recursive'
           
       - name: Install ROCm SDK
         run: |
           [ ! -d /etc/apt/keyrings ] && sudo mkdir --parents --mode=0755 /etc/apt/keyrings
           wget https://repo.radeon.com/rocm/rocm.gpg.key -O - | gpg --dearmor | sudo tee /etc/apt/keyrings/rocm.gpg > /dev/null
-          echo "deb [arch=amd64 signed-by=/etc/apt/keyrings/rocm.gpg] https://repo.radeon.com/rocm/apt/5.4.2 focal main" | sudo tee --append /etc/apt/sources.list.d/rocm.list
+          echo "deb [arch=amd64 signed-by=/etc/apt/keyrings/rocm.gpg] https://repo.radeon.com/rocm/apt/$ROCM_VERSION focal main" | sudo tee --append /etc/apt/sources.list.d/rocm.list
           echo -e 'Package: *\nPin: release o=repo.radeon.com\nPin-Priority: 600' | sudo tee /etc/apt/preferences.d/rocm-pin-600
           sudo apt update
-          sudo apt install rocm-dev rocsparse-dev rocprim-dev rocthrust-dev rocblas-dev hipblas-dev hipcub-dev hipsparse-dev -y
+          sudo apt install rocm-dev rocblas-dev hipblas-dev -y
           echo "/opt/rocm/bin" >> $GITHUB_PATH
           echo "ROCM_PATH=/opt/rocm" >> $GITHUB_ENV
-          echo "ROCM_VERSION=5.4.2" >> $GITHUB_ENV
+          echo "HIP_PATH=/opt/rocm" >> $env:GITHUB_ENV
         shell: bash
+          
+      - uses: actions/setup-python@v3
+        with:
+          python-version: "3.10"
+          
+      - name: Install Dependencies
+        run: |
+          python -m pip install cmake ninja
+        
+      - name: Build Lib
+        run: |
+          $env:CC = '/opt/rocm/llvm/bin/clang'
+          $env:CXX = '/opt/rocm/llvm/bin/clang++'
+          $env:CMAKE_PREFIX_PATH = '/opt/rocm'
+          $env:VERBOSE = '1'
+          mkdir 'build'
+          Set-Location './vendor/llama.cpp'
+          cmake -B build -DLLAMA_HIPBLAS=ON -DBUILD_SHARED_LIBS=ON '-DGPU_TARGETS=gfx803;gfx900;gfx906:xnack-;gfx908:xnack-;gfx90a:xnack+;gfx90a:xnack-;gfx1010;gfx1012;gfx1030;gfx1100;gfx1101;gfx1102'
+          cmake --build build --config Release --target llama
+          $llamalib = (dir './build' -file -recurse).where({$_.name -eq 'libllama.so'})[0].fullname
+          Copy-Item $llamalib '../../build'
+        
+      - uses: actions/upload-artifact@v3
+        with:
+          name: ${{ format('{0}-rocm-lib-{1}-{2}', runner.os, inputs.version, matrix.rocm) }}
+          path: ./build/libllama.so
+          
+  build_lib_win:
+    name: Build ROCm Lib Windows
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: pwsh
+
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          repository: 'abetlen/llama-cpp-python'
+          ref: ${{ inputs.version }}
+          submodules: 'recursive'
+          
+      - name: Install ROCm SDK
+        run: |
+          curl -LO https://download.amd.com/developer/eula/rocm-hub/AMD-Software-PRO-Edition-23.Q3-Win10-Win11-For-HIP.exe
+          Start-Process 'AMD-Software-PRO-Edition-23.Q3-Win10-Win11-For-HIP.exe' -ArgumentList '-install' -NoNewWindow -Wait
+          echo "C:\Program Files\AMD\ROCm\5.5\bin" >> $env:GITHUB_PATH
+          echo 'ROCM_PATH=C:\Program Files\AMD\ROCm\5.5' >> $env:GITHUB_ENV
+          echo 'HIP_PATH=C:\Program Files\AMD\ROCm\5.5' >> $env:GITHUB_ENV
+          echo "ROCM_VERSION=5.5.1" >> $env:GITHUB_ENV
+          
+      - uses: actions/setup-python@v3
+        with:
+          python-version: "3.10"
+          
+      - name: Install Dependencies
+        run: |
+          python -m pip install cmake ninja
+        
+      - name: Build Lib
+        run: |
+          $env:CC = 'C:\Program Files\AMD\ROCm\5.5\bin\clang.exe'
+          $env:CXX = 'C:\Program Files\AMD\ROCm\5.5\bin\clang++.exe'
+          $env:CMAKE_PREFIX_PATH = 'C:\Program Files\AMD\ROCm\5.5'
+          $env:VERBOSE = '1'
+          mkdir 'build'
+          Set-Location '.\vendor\llama.cpp'
+          cmake -B build -G "Ninja" -DLLAMA_HIPBLAS=ON -DBUILD_SHARED_LIBS=ON '-DGPU_TARGETS=gfx803;gfx900;gfx906:xnack-;gfx908:xnack-;gfx90a:xnack+;gfx90a:xnack-;gfx1010;gfx1012;gfx1030;gfx1100;gfx1101;gfx1102'
+          cmake --build build --config Release --target llama
+          Copy-Item '.\build\bin\llama.dll' '..\..\build'
+        
+      - uses: actions/upload-artifact@v3
+        with:
+          name: ${{ format('{0}-rocm-lib-{1}-{2}', runner.os, inputs.version, '5.5.1') }}
+          path: ./build/llama.dll
+          
+  build_wheels:
+    name: Build ${{ matrix.os }} ROCm ${{ matrix.rocm }} Wheel ${{ matrix.pyver }}
+    runs-on: ${{ matrix.os }}
+    needs: ['build_lib_lin','build_lib_win']
+    strategy:
+      matrix:
+        os: [ubuntu-20.04, windows-latest]
+        pyver: ["3.8", "3.9", "3.10", "3.11"]
+        rocm: ['5.4.2','5.5','5.5.1','5.6.1']
+        exclude:
+            - os: windows-latest
+              rocm: '5.4.2'
+            - os: windows-latest
+              rocm: '5.5'
+            - os: windows-latest
+              rocm: '5.6.1'
+            - os: ubuntu-20.04
+              rocm: '5.5.1'
+    defaults:
+      run:
+        shell: pwsh
+    env:
+      PCKGVER: ${{ inputs.version }}
+      ROCM_VERSION: ${{ matrix.rocm }}
+
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          repository: 'abetlen/llama-cpp-python'
+          ref: ${{ inputs.version }}
+          
+      - uses: actions/download-artifact@v3
+        with:
+          name: ${{ format('{0}-rocm-lib-{1}-{2}', runner.os, inputs.version, matrix.rocm) }}
+          path: ./llama_cpp
           
       - uses: actions/setup-python@v3
         with:
@@ -46,17 +178,30 @@ jobs:
           
       - name: Install Dependencies
         run: |
-          pip3 install build wheel cmake scikit-build ninja
+          python -m pip install build wheel cmake scikit-build ninja
         
       - name: Build Wheel
         run: |
-          $env:VERBOSE = '1'
-          $env:FORCE_CMAKE = '1'
-          $env:CMAKE_ARGS = '-DLLAMA_CUBLAS=on -DCMAKE_HIP_ARCHITECTURES=gfx900:xnack-;gfx906:xnack-;gfx908:xnack-;gfx90a:xnack-;gfx90a:xnack+;gfx1030'
-          $env:CXX = '/opt/rocm/bin/hipcc'
-          python3 -m build -n --wheel -C--build-option=egg_info "-C--build-option=--tag-build=+rocm5.4.2"
+          $packageVersion = [version]$env:PCKGVER.TrimStart('v')
+          $setup = Get-Content 'setup.py' -raw
+          $llamalib = if ($IsLinux) {'libllama.so'} else {'llama.dll'}
+          $newsetup = $setup.Replace('package_data={"llama_cpp": ["py.typed"]},',"package_data={'llama_cpp': ['py.typed', '$llamalib']},")
+          New-Item 'setup.py' -itemType File -value $newsetup -force
+          python setup.py --skip-cmake bdist_wheel egg_info "--tag-build=+rocm$env:ROCM_VERSION"
+          
+      - name: Upload files to a GitHub release
+        id: upload-release
+        uses: svenstaro/upload-release-action@2.6.1
+        continue-on-error: true
+        with:
+          file: ./dist/*.whl
+          tag: rocm
+          file_glob: true
+          make_latest: false
+          overwrite: true
         
       - uses: actions/upload-artifact@v3
+        if: steps.upload-release.outcome == 'failure'
         with:
-          name: 'wheels'
+          name: 'rocm-wheels'
           path: ./dist/*.whl
