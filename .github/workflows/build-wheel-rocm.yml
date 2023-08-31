@@ -78,7 +78,9 @@ jobs:
           $env:VERBOSE = '1'
           mkdir 'build'
           Set-Location './vendor/llama.cpp'
-          cmake -B build -DLLAMA_HIPBLAS=ON -DBUILD_SHARED_LIBS=ON '-DGPU_TARGETS=gfx803;gfx900;gfx906:xnack-;gfx908:xnack-;gfx90a:xnack+;gfx90a:xnack-;gfx1010;gfx1012;gfx1030;gfx1100;gfx1101;gfx1102'
+          $gputargets = 'gfx803;gfx900;gfx906:xnack-;gfx908:xnack-;gfx90a:xnack+;gfx90a:xnack-;gfx1010;gfx1012;gfx1030;gfx1100;gfx1101;gfx1102'
+          if ([version]$env:ROCM_VERSION -lt [version]'5.5') {$gputargets = 'gfx803;gfx900;gfx906:xnack-;gfx908:xnack-;gfx90a:xnack+;gfx90a:xnack-;gfx1010;gfx1012;gfx1030'}
+          cmake -B build -DLLAMA_HIPBLAS=ON -DBUILD_SHARED_LIBS=ON "-DGPU_TARGETS=$gputargets"
           cmake --build build --config Release --target llama
           $llamalib = (dir './build' -file -recurse).where({$_.name -eq 'libllama.so'})[0].fullname
           Copy-Item $llamalib '../../build'
