@@ -3,7 +3,7 @@ Wheels for [llama-cpp-python](https://github.com/abetlen/llama-cpp-python) compi
 
 Requirements:
 - Windows and Linux x86_64
-- CUDA 11.6 - 12.2 or a ROCm-compatible AMD GPU
+- CUDA 11.6 - 12.2
 - CPython 3.7 - 3.11
 
 llama.cpp, and llama-cpp-python by extension, has migrated to using the new GGUF format and has dropped support for GGML.
@@ -50,7 +50,7 @@ Wheels can be manually downloaded from: https://jllllll.github.io/llama-cpp-pyth
 ---
 I have renamed llama-cpp-python packages available to ease the transition to GGUF.  
 This is accomplished by installing the renamed package alongside the main llama-cpp-python package.  
-This should allow applications to maintain GGML support when llama-cpp-python eventually drops GGML support.
+This should allow applications to maintain GGML support while still supporting GGUF.
 ```
 python -m pip install llama-cpp-python-ggml --prefer-binary --extra-index-url=https://jllllll.github.io/llama-cpp-python-cuBLAS-wheels/AVX2/cu117
 ```
