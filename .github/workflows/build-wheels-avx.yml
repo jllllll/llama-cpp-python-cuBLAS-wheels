@@ -37,7 +37,7 @@ jobs:
           ref: ${{ inputs.version }}
           submodules: 'recursive'
           
-      - uses: actions/setup-python@v3
+      - uses: actions/setup-python@v4
         with:
           python-version: ${{ matrix.pyver }}
         
@@ -122,7 +122,7 @@ jobs:
           ref: ${{ inputs.version }}
           submodules: 'recursive'
           
-      - uses: actions/setup-python@v3
+      - uses: actions/setup-python@v4
         with:
           python-version: ${{ matrix.pyver }}
         
@@ -227,7 +227,7 @@ jobs:
           ref: "v0.1.78"
           submodules: 'recursive'
           
-      - uses: actions/setup-python@v3
+      - uses: actions/setup-python@v4
         with:
           python-version: ${{ matrix.pyver }}
         
@@ -333,7 +333,7 @@ jobs:
           ref: "v0.1.78"
           submodules: 'recursive'
           
-      - uses: actions/setup-python@v3
+      - uses: actions/setup-python@v4
         with:
           python-version: ${{ matrix.pyver }}
         
@@ -436,7 +436,7 @@ jobs:
           ref: ${{ inputs.version }}
           submodules: 'recursive'
           
-      - uses: actions/setup-python@v3
+      - uses: actions/setup-python@v4
         with:
           python-version: ${{ matrix.pyver }}
           
@@ -493,7 +493,7 @@ jobs:
           ref: "v0.1.78"
           submodules: 'recursive'
           
-      - uses: actions/setup-python@v3
+      - uses: actions/setup-python@v4
         with:
           python-version: ${{ matrix.pyver }}
           
