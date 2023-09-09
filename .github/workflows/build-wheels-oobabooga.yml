@@ -185,7 +185,7 @@ jobs:
           
       - name: Upload files to a GitHub release
         id: upload-release
-        uses: svenstaro/upload-release-action@2.6.1
+        uses: svenstaro/upload-release-action@2.7.0
         continue-on-error: true
         with:
           file: ./dist/*.whl
