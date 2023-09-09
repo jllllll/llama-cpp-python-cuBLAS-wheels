@@ -31,7 +31,7 @@ jobs:
       PCKGVER: ${{ inputs.version }}
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           repository: 'abetlen/llama-cpp-python'
           ref: ${{ inputs.version }}
@@ -137,7 +137,7 @@ jobs:
       PCKGVER: ${{ inputs.version }}
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           repository: 'abetlen/llama-cpp-python'
           ref: ${{ inputs.version }}
@@ -223,7 +223,7 @@ jobs:
       PCKGVER: ${{ inputs.version }}
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           repository: 'abetlen/llama-cpp-python'
           ref: ${{ inputs.version }}
@@ -315,7 +315,7 @@ jobs:
       PCKGVER: ${{ inputs.version }}
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           repository: 'abetlen/llama-cpp-python'
           ref: ${{ inputs.version }}
@@ -384,7 +384,7 @@ jobs:
       PCKGVER: ${{ inputs.version }}
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           repository: 'abetlen/llama-cpp-python'
           ref: ${{ inputs.version }}
@@ -476,7 +476,7 @@ jobs:
       PCKGVER: ${{ inputs.version }}
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           repository: 'abetlen/llama-cpp-python'
           ref: ${{ inputs.version }}
