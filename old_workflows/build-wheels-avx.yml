@@ -4,8 +4,8 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'Version tag of llama-cpp-python to build: v0.2.2'
-        default: 'v0.2.2'
+        description: 'Version tag of llama-cpp-python to build: v0.1.82'
+        default: 'v0.1.82'
         required: true
         type: string
 
@@ -19,7 +19,7 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-20.04, windows-latest]
-        pyver: ["3.8", "3.9", "3.10", "3.11"]
+        pyver: ["3.7", "3.8", "3.9", "3.10", "3.11"]
         cuda: ["11.6.2", "11.7.1", "11.8.0", "12.0.1", "12.1.1", "12.2.0"]
         releasetag: ["AVX"]
     defaults:
@@ -52,32 +52,6 @@ jobs:
           add-pip-as-python-dependency: true
           auto-activate-base: false
           
-      - name: VS Integration Cache
-        id: vs-integration-cache
-        if: runner.os == 'Windows'
-        uses: actions/cache@v3.3.2
-        with:
-          path: ./MSBuildExtensions
-          key: cuda-${{ matrix.cuda }}-vs-integration
-          
-      - name: Get Visual Studio Integration
-        if: runner.os == 'Windows' && steps.vs-integration-cache.outputs.cache-hit != 'true'
-        run: |
-          if ($env:CUDAVER -eq '12.1.1') {$x = '12.1.0'} else {$x = $env:CUDAVER}
-          $links = (Invoke-RestMethod 'https://github.com/Jimver/cuda-toolkit/raw/257a101bc5c656053b5dc220126744980ef7f5b8/src/links/windows-links.ts').Trim().split().where({$_ -ne ''})
-          for ($i=$q=0;$i -lt $links.count -and $q -lt 2;$i++) {if ($links[$i] -eq "'$x',") {$q++}}
-          Invoke-RestMethod $links[$i].Trim("'") -OutFile 'cudainstaller.zip'
-          & 'C:\Program Files\7-Zip\7z.exe' e cudainstaller.zip -oMSBuildExtensions -r *\MSBuildExtensions\* > $null
-          Remove-Item 'cudainstaller.zip'
-          
-      - name: Install Visual Studio Integration
-        if: runner.os == 'Windows'
-        run: |
-          $y = (gi '.\MSBuildExtensions').fullname + '\*'
-          (gi 'C:\Program Files\Microsoft Visual Studio\2022\Enterprise\MSBuild\Microsoft\VC\*\BuildCustomizations').fullname.foreach({cp $y $_})
-          $cupath = 'CUDA_PATH_V' + $env:CUDAVER.Remove($env:CUDAVER.LastIndexOf('.')).Replace('.','_')
-          echo "$cupath=$env:CONDA_PREFIX" >> $env:GITHUB_ENV
-          
       - name: Install Dependencies
         run: |
           $cudaVersion = $env:CUDAVER
@@ -85,8 +59,6 @@ jobs:
           $cudaNum = [int]$cudaVersion.substring($cudaVersion.LastIndexOf('.')+1)
           while ($cudaNum -ge 0) { $cudaChannels += '-c nvidia/label/cuda-' + $cudaVersion.Remove($cudaVersion.LastIndexOf('.')+1) + $cudaNum + ' '; $cudaNum-- }
           mamba install -y 'cuda' $cudaChannels.TrimEnd().Split()
-          if (!(mamba list cuda)[-1].contains('cuda')) {sleep -s 10; mamba install -y 'cuda' $cudaChannels.TrimEnd().Split()}
-          if (!(mamba list cuda)[-1].contains('cuda')) {throw 'CUDA Toolkit failed to install!'}
           python -m pip install build wheel
           
       - name: Build Wheel
@@ -97,6 +69,7 @@ jobs:
           $env:CUDA_HOME = $env:CONDA_PREFIX
           if ($IsLinux) {$env:LD_LIBRARY_PATH = $env:CONDA_PREFIX + '/lib:' + $env:LD_LIBRARY_PATH}
           $env:VERBOSE = '1'
+          $env:FORCE_CMAKE = '1'
           $env:CMAKE_ARGS = '-DLLAMA_CUBLAS=on -DCMAKE_CUDA_ARCHITECTURES=all'
           if ($packageVersion -gt [version]'0.1.68' -and $packageVersion -lt [version]'0.1.71') {$env:CMAKE_ARGS = '-DLLAMA_CUBLAS=on -DCMAKE_CUDA_ARCHITECTURES=35-real;37-real;52;61-real;70-real;72-real;75-real;80-real;86-real;89-real;90'}
           if ($packageVersion -gt [version]'0.1.68' -and $packageVersion -lt [version]'0.1.71' -and [version]$env:CUDAVER -ge [version]'12.0') {$env:CMAKE_ARGS = '-DLLAMA_CUBLAS=on -DCMAKE_CUDA_ARCHITECTURES=52;61-real;70-real;72-real;75-real;80-real;86-real;89-real;90'}
@@ -105,20 +78,7 @@ jobs:
           if ($env:AVXVER -eq 'AVX') {$env:CMAKE_ARGS = $env:CMAKE_ARGS + ' -DLLAMA_AVX2=off -DLLAMA_FMA=off -DLLAMA_F16C=off'}
           if ($env:AVXVER -eq 'AVX512') {$env:CMAKE_ARGS = $env:CMAKE_ARGS + ' -DLLAMA_AVX512=on'}
           if ($env:AVXVER -eq 'basic') {$env:CMAKE_ARGS = $env:CMAKE_ARGS + ' -DLLAMA_AVX=off -DLLAMA_AVX2=off -DLLAMA_FMA=off -DLLAMA_F16C=off'}
-          $buildtag = "+cu$cudaVersion"
-          if ($packageVersion -lt [version]'0.2.0') {
-            $env:FORCE_CMAKE = '1'
-            python -m build --wheel -C--build-option=egg_info "-C--build-option=--tag-build=$buildtag"
-          } else {
-            $initpath = Join-Path '.' 'llama_cpp' '__init__.py' -resolve
-            $initcontent = Get-Content $initpath -raw
-            $regexstr = '(?s)(?<=__version__ \= ")\d+(?:\.\d+)*(?=")'
-            $regexmatch = [Regex]::Matches($initcontent,$regexstr)
-            if (!($regexmatch[0].Success)) {throw '__init__.py parsing failed'}
-            $newinit = $regexmatch[0].Result(('$`' + '$&' + $buildtag + '$'''))
-            New-Item $initpath -itemType File -value $newinit -force
-            python -m build --wheel
-          }
+          python -m build --wheel -C--build-option=egg_info "-C--build-option=--tag-build=+cu$cudaVersion"
           
       - name: Upload files to a GitHub release
         id: upload-release
@@ -177,32 +137,6 @@ jobs:
           add-pip-as-python-dependency: true
           auto-activate-base: false
           
-      - name: VS Integration Cache
-        id: vs-integration-cache
-        if: runner.os == 'Windows'
-        uses: actions/cache@v3.3.2
-        with:
-          path: ./MSBuildExtensions
-          key: cuda-${{ matrix.cuda }}-vs-integration
-          
-      - name: Get Visual Studio Integration
-        if: runner.os == 'Windows' && steps.vs-integration-cache.outputs.cache-hit != 'true'
-        run: |
-          if ($env:CUDAVER -eq '12.1.1') {$x = '12.1.0'} else {$x = $env:CUDAVER}
-          $links = (Invoke-RestMethod 'https://github.com/Jimver/cuda-toolkit/raw/257a101bc5c656053b5dc220126744980ef7f5b8/src/links/windows-links.ts').Trim().split().where({$_ -ne ''})
-          for ($i=$q=0;$i -lt $links.count -and $q -lt 2;$i++) {if ($links[$i] -eq "'$x',") {$q++}}
-          Invoke-RestMethod $links[$i].Trim("'") -OutFile 'cudainstaller.zip'
-          & 'C:\Program Files\7-Zip\7z.exe' e cudainstaller.zip -oMSBuildExtensions -r *\MSBuildExtensions\* > $null
-          Remove-Item 'cudainstaller.zip'
-          
-      - name: Install Visual Studio Integration
-        if: runner.os == 'Windows'
-        run: |
-          $y = (gi '.\MSBuildExtensions').fullname + '\*'
-          (gi 'C:\Program Files\Microsoft Visual Studio\2022\Enterprise\MSBuild\Microsoft\VC\*\BuildCustomizations').fullname.foreach({cp $y $_})
-          $cupath = 'CUDA_PATH_V' + $env:CUDAVER.Remove($env:CUDAVER.LastIndexOf('.')).Replace('.','_')
-          echo "$cupath=$env:CONDA_PREFIX" >> $env:GITHUB_ENV
-          
       - name: Install Dependencies
         run: |
           $cudaVersion = $env:CUDAVER
@@ -210,35 +144,26 @@ jobs:
           $cudaNum = [int]$cudaVersion.substring($cudaVersion.LastIndexOf('.')+1)
           while ($cudaNum -ge 0) { $cudaChannels += '-c nvidia/label/cuda-' + $cudaVersion.Remove($cudaVersion.LastIndexOf('.')+1) + $cudaNum + ' '; $cudaNum-- }
           mamba install -y 'cuda' $cudaChannels.TrimEnd().Split()
-          if (!(mamba list cuda)[-1].contains('cuda')) {sleep -s 10; mamba install -y 'cuda' $cudaChannels.TrimEnd().Split()}
-          if (!(mamba list cuda)[-1].contains('cuda')) {throw 'CUDA Toolkit failed to install!'}
           python -m pip install build wheel
           
       - name: Change Package Name
         run: |
           $packageVersion = [version]$env:PCKGVER.TrimStart('v')
+          $setup = Get-Content 'setup.py' -raw
           $pyproject = Get-Content 'pyproject.toml' -raw
           $cmakelists = Get-Content 'CMakeLists.txt' -raw
-          if ($packageVersion -lt [version]'0.2.0') {
-            $setup = Get-Content 'setup.py' -raw
-            $regexstr = '(?s)name="llama_cpp_python",(.+)(package_dir={"llama_cpp": "llama_cpp", "llama_cpp.server": "llama_cpp/server"},.+?packages=\["llama_cpp", "llama_cpp.server"],)'
-            if ($packageVersion -gt [version]'0.1.77') {$regexstr = '(?s)name="llama_cpp_python",(.+)(package_dir={"llama_cpp": "llama_cpp", "llama_cpp.server": "llama_cpp/server"},.+?package_data={"llama_cpp": \["py.typed"]},.+?packages=\["llama_cpp", "llama_cpp.server"],)'}
-            $regexmatch = [Regex]::Matches($setup,$regexstr)
-            if (!($regexmatch[0].Success)) {throw 'setup.py parsing failed'}
-            $newstr = 'name="llama_cpp_python_cuda",' + $regexmatch[0].Groups[1].Value + $regexmatch[0].Groups[2].Value.Replace('llama_cpp','llama_cpp_cuda')
-            $newsetup = $regexmatch[0].Result(('$`'+$newstr+'$'''))
-            New-Item 'setup.py' -itemType File -value $newsetup -force
-            $regexstr = '(?s)(?<=name = ")llama_cpp_python(".+?packages = \[{include = ")llama_cpp(".+)'
-            $regexmatch = [Regex]::Matches($pyproject,$regexstr)
-            if (!($regexmatch[0].Success)) {throw 'pyproject.toml parsing failed'}
-            $newpyproject = $regexmatch[0].Result(('$`'+'llama_cpp_python_cuda'+'$1llama_cpp_cuda$2'))
-          } else {
-            $regexstr = '(?s)(?<=\[project]\s+?name = ")llama_cpp_python(".+?all = \[\s+?")llama_cpp_python(\[.+?wheel.packages = \[")llama_cpp("].+?input = ")llama_cpp(?=/__init__.py")'
-            $regexmatch = [Regex]::Matches($pyproject,$regexstr)
-            if (!($regexmatch[0].Success)) {throw 'pyproject.toml parsing failed'}
-            $newpyproject = $regexmatch[0].Result(('$`' + 'llama_cpp_python_cuda' + '$1llama_cpp_cuda$2' + 'llama_cpp_cuda$3llama_cpp_cuda' + '$'''))
-          }
+          $regexstr = '(?s)name="llama_cpp_python",(.+)(package_dir={"llama_cpp": "llama_cpp", "llama_cpp.server": "llama_cpp/server"},.+?packages=\["llama_cpp", "llama_cpp.server"],)'
+          if ($packageVersion -gt [version]'0.1.77') {$regexstr = '(?s)name="llama_cpp_python",(.+)(package_dir={"llama_cpp": "llama_cpp", "llama_cpp.server": "llama_cpp/server"},.+?package_data={"llama_cpp": \["py.typed"]},.+?packages=\["llama_cpp", "llama_cpp.server"],)'}
+          $regexmatch = [Regex]::Matches($setup,$regexstr)
+          if (!($regexmatch[0].Success)) {throw 'setup.py parsing failed'}
+          $newstr = 'name="llama_cpp_python_cuda",' + $regexmatch[0].Groups[1].Value + $regexmatch[0].Groups[2].Value.Replace('llama_cpp','llama_cpp_cuda')
+          $newsetup = $regexmatch[0].Result(('$`'+$newstr+'$'''))
+          $regexstr = '(?s)(?<=name = ")llama_cpp_python(".+?packages = \[{include = ")llama_cpp(".+)'
+          $regexmatch = [Regex]::Matches($pyproject,$regexstr)
+          if (!($regexmatch[0].Success)) {throw 'pyproject.toml parsing failed'}
+          $newpyproject = $regexmatch[0].Result(('$`'+'llama_cpp_python_cuda'+'$1llama_cpp_cuda$2'))
           Copy-Item 'llama_cpp' 'llama_cpp_cuda' -recurse
+          New-Item 'setup.py' -itemType File -value $newsetup -force
           New-Item 'pyproject.toml' -itemType File -value $newpyproject -force
           New-Item 'CMakeLists.txt' -itemType File -value $cmakelists.Replace('llama_cpp','llama_cpp_cuda') -force
           
@@ -250,27 +175,15 @@ jobs:
           $env:CUDA_HOME = $env:CONDA_PREFIX
           if ($IsLinux) {$env:LD_LIBRARY_PATH = $env:CONDA_PREFIX + '/lib:' + $env:LD_LIBRARY_PATH}
           $env:VERBOSE = '1'
+          $env:FORCE_CMAKE = '1'
           $env:CMAKE_ARGS = '-DLLAMA_CUBLAS=on -DCMAKE_CUDA_ARCHITECTURES=all'
           if ($packageVersion -gt [version]'0.1.68' -and $packageVersion -lt [version]'0.1.71') {$env:CMAKE_ARGS = '-DLLAMA_CUBLAS=on -DCMAKE_CUDA_ARCHITECTURES=35-real;37-real;52;61-real;70-real;72-real;75-real;80-real;86-real;89-real;90'}
           if ($packageVersion -gt [version]'0.1.68' -and $packageVersion -lt [version]'0.1.71' -and [version]$env:CUDAVER -ge [version]'12.0') {$env:CMAKE_ARGS = '-DLLAMA_CUBLAS=on -DCMAKE_CUDA_ARCHITECTURES=52;61-real;70-real;72-real;75-real;80-real;86-real;89-real;90'}
           if ($packageVersion -gt [version]'0.1.68' -and $packageVersion -lt [version]'0.1.71' -and [version]$env:CUDAVER -lt [version]'11.8') {$env:CMAKE_ARGS = '-DLLAMA_CUBLAS=on -DCMAKE_CUDA_ARCHITECTURES=35-real;37-real;52;61-real;70-real;72-real;75-real;80-real;86'}
           if ($packageVersion -lt [version]'0.1.66') {$env:CUDAFLAGS = '-arch=all'}
-          if ($env:AVXVER -eq 'AVX') {$env:CMAKE_ARGS = $env:CMAKE_ARGS + ' -DLLAMA_AVX2=off -DLLAMA_FMA=off -DLLAMA_F16C=off'; $cputag = 'avx'}
-          if ($env:AVXVER -eq 'basic') {$env:CMAKE_ARGS = $env:CMAKE_ARGS + ' -DLLAMA_AVX=off -DLLAMA_AVX2=off -DLLAMA_FMA=off -DLLAMA_F16C=off'; $cputag = 'basic'}
-          $buildtag = "+cu$cudaVersion$cputag"
-          if ($packageVersion -lt [version]'0.2.0') {
-            $env:FORCE_CMAKE = '1'
-            python -m build --wheel -C--build-option=egg_info "-C--build-option=--tag-build=$buildtag"
-          } else {
-            $initpath = Join-Path '.' 'llama_cpp_cuda' '__init__.py' -resolve
-            $initcontent = Get-Content $initpath -raw
-            $regexstr = '(?s)(?<=__version__ \= ")\d+(?:\.\d+)*(?=")'
-            $regexmatch = [Regex]::Matches($initcontent,$regexstr)
-            if (!($regexmatch[0].Success)) {throw '__init__.py parsing failed'}
-            $newinit = $regexmatch[0].Result(('$`' + '$&' + $buildtag + '$'''))
-            New-Item $initpath -itemType File -value $newinit -force
-            python -m build --wheel
-          }
+          if ($env:AVXVER -eq 'AVX') {$env:CMAKE_ARGS = $env:CMAKE_ARGS + ' -DLLAMA_AVX2=off -DLLAMA_FMA=off -DLLAMA_F16C=off'; $buildtag = 'avx'}
+          if ($env:AVXVER -eq 'basic') {$env:CMAKE_ARGS = $env:CMAKE_ARGS + ' -DLLAMA_AVX=off -DLLAMA_AVX2=off -DLLAMA_FMA=off -DLLAMA_F16C=off'; $buildtag = 'basic'}
+          python -m build --wheel -C--build-option=egg_info "-C--build-option=--tag-build=+cu$cudaVersion$buildtag"
           
       - name: Upload files to a GitHub release
         id: upload-release
@@ -507,7 +420,7 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-20.04, windows-latest]
-        pyver: ["3.8", "3.9", "3.10", "3.11"]
+        pyver: ["3.7", "3.8", "3.9", "3.10", "3.11"]
         avx: ["AVX"]
     defaults:
       run:
@@ -533,25 +446,12 @@ jobs:
           
       - name: Build Wheel
         run: |
-          $packageVersion = [version]$env:PCKGVER.TrimStart('v')
           $env:VERBOSE = '1'
+          $env:FORCE_CMAKE = '1'
           if ($env:AVXVER -eq 'AVX') {$env:CMAKE_ARGS = '-DLLAMA_AVX2=off -DLLAMA_FMA=off -DLLAMA_F16C=off'}
           if ($env:AVXVER -eq 'AVX512') {$env:CMAKE_ARGS = '-DLLAMA_AVX512=on'}
           if ($env:AVXVER -eq 'basic') {$env:CMAKE_ARGS = '-DLLAMA_AVX=off -DLLAMA_AVX2=off -DLLAMA_FMA=off -DLLAMA_F16C=off'}
-          $buildtag = "+cpu$env:AVXVER"
-          if ($packageVersion -lt [version]'0.2.0') {
-            $env:FORCE_CMAKE = '1'
-            python -m build --wheel -C--build-option=egg_info "-C--build-option=--tag-build=$buildtag"
-          } else {
-            $initpath = Join-Path '.' 'llama_cpp' '__init__.py' -resolve
-            $initcontent = Get-Content $initpath -raw
-            $regexstr = '(?s)(?<=__version__ \= ")\d+(?:\.\d+)*(?=")'
-            $regexmatch = [Regex]::Matches($initcontent,$regexstr)
-            if (!($regexmatch[0].Success)) {throw '__init__.py parsing failed'}
-            $newinit = $regexmatch[0].Result(('$`' + '$&' + $buildtag + '$'''))
-            New-Item $initpath -itemType File -value $newinit -force
-            python -m build --wheel
-          }
+          python -m build --wheel -C--build-option=egg_info "-C--build-option=--tag-build=+cpu$env:AVXVER"
           
       - name: Upload files to a GitHub release
         id: upload-release

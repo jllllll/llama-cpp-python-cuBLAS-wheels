@@ -4,16 +4,16 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'Version tag of llama-cpp-python to build: v0.1.82'
-        default: 'v0.1.82'
-        required: false
+        description: 'Version tag of llama-cpp-python to build: v0.2.2'
+        default: 'v0.2.2'
+        required: true
         type: string
   workflow_call:
     inputs:
       version:
-        description: 'Version tag of llama-cpp-python to build: v0.1.82'
-        default: 'v0.1.82'
-        required: false
+        description: 'Version tag of llama-cpp-python to build: v0.2.2'
+        default: 'v0.2.2'
+        required: true
         type: string
 
 permissions:
@@ -26,7 +26,7 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-20.04, windows-latest]
-        pyver: ["3.7", "3.8", "3.9", "3.10", "3.11"]
+        pyver: ["3.8", "3.9", "3.10", "3.11"]
         avx: ["AVX","AVX2","AVX512","basic"]
     defaults:
       run:
@@ -52,12 +52,25 @@ jobs:
           
       - name: Build Wheel
         run: |
+          $packageVersion = [version]$env:PCKGVER.TrimStart('v')
           $env:VERBOSE = '1'
-          $env:FORCE_CMAKE = '1'
           if ($env:AVXVER -eq 'AVX') {$env:CMAKE_ARGS = '-DLLAMA_AVX2=off -DLLAMA_FMA=off -DLLAMA_F16C=off'}
           if ($env:AVXVER -eq 'AVX512') {$env:CMAKE_ARGS = '-DLLAMA_AVX512=on'}
           if ($env:AVXVER -eq 'basic') {$env:CMAKE_ARGS = '-DLLAMA_AVX=off -DLLAMA_AVX2=off -DLLAMA_FMA=off -DLLAMA_F16C=off'}
-          python -m build --wheel -C--build-option=egg_info "-C--build-option=--tag-build=+cpu$env:AVXVER"
+          $buildtag = "+cpu$env:AVXVER"
+          if ($packageVersion -lt [version]'0.2.0') {
+            $env:FORCE_CMAKE = '1'
+            python -m build --wheel -C--build-option=egg_info "-C--build-option=--tag-build=$buildtag"
+          } else {
+            $initpath = Join-Path '.' 'llama_cpp' '__init__.py' -resolve
+            $initcontent = Get-Content $initpath -raw
+            $regexstr = '(?s)(?<=__version__ \= ")\d+(?:\.\d+)*(?=")'
+            $regexmatch = [Regex]::Matches($initcontent,$regexstr)
+            if (!($regexmatch[0].Success)) {throw '__init__.py parsing failed'}
+            $newinit = $regexmatch[0].Result(('$`' + '$&' + $buildtag + '$'''))
+            New-Item $initpath -itemType File -value $newinit -force
+            python -m build --wheel
+          }
           
       - name: Upload files to a GitHub release
         id: upload-release

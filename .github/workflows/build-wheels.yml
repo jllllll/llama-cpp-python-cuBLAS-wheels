@@ -4,28 +4,29 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'Version tag of llama-cpp-python to build: v0.1.83'
-        default: 'v0.1.83'
-        required: false
+        description: 'Version tag of llama-cpp-python to build: v0.2.2'
+        default: 'v0.2.2'
+        required: true
         type: string
   workflow_call:
     inputs:
       version:
-        description: 'Version tag of llama-cpp-python to build: v0.1.83'
-        default: 'v0.1.83'
-        required: false
+        description: 'Version tag of llama-cpp-python to build: v0.2.2'
+        default: 'v0.2.2'
+        required: true
         type: string
 
 permissions:
   contents: write
 
 jobs:
-  build_libs:
-    name: Build Lib ${{ matrix.os }} ${{ matrix.cuda }} ${{ matrix.releasetag == 'wheels' && 'AVX2' || matrix.releasetag }}
+  build_wheels:
+    name: Build Wheel ${{ matrix.os }} ${{ matrix.pyver }} ${{ matrix.cuda }} ${{ matrix.releasetag == 'wheels' && 'AVX2' || matrix.releasetag }}
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
         os: [ubuntu-20.04, windows-latest]
+        pyver: ["3.8", "3.9", "3.10", "3.11"]
         cuda: ["11.6.2", "11.7.1", "11.8.0", "12.0.1", "12.1.1", "12.2.0"]
         releasetag: ["AVX","wheels","AVX512","basic"]
     defaults:
@@ -42,20 +43,32 @@ jobs:
           repository: 'abetlen/llama-cpp-python'
           ref: ${{ inputs.version }}
           submodules: 'recursive'
+          
+      - uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.pyver }}
         
       - name: Setup Mamba
         uses: conda-incubator/setup-miniconda@v2.2.0
         with:
           activate-environment: "build"
-          python-version: "3.11"
+          python-version: ${{ matrix.pyver }}
           miniforge-variant: Mambaforge
           miniforge-version: latest
           use-mamba: true
           add-pip-as-python-dependency: true
           auto-activate-base: false
           
-      - name: Install Visual Studio Integration
+      - name: VS Integration Cache
+        id: vs-integration-cache
         if: runner.os == 'Windows'
+        uses: actions/cache@v3.3.2
+        with:
+          path: ./MSBuildExtensions
+          key: cuda-${{ matrix.cuda }}-vs-integration
+          
+      - name: Get Visual Studio Integration
+        if: runner.os == 'Windows' && steps.vs-integration-cache.outputs.cache-hit != 'true'
         run: |
           if ($env:CUDAVER -eq '12.1.1') {$x = '12.1.0'} else {$x = $env:CUDAVER}
           $links = (Invoke-RestMethod 'https://github.com/Jimver/cuda-toolkit/raw/257a101bc5c656053b5dc220126744980ef7f5b8/src/links/windows-links.ts').Trim().split().where({$_ -ne ''})
@@ -63,6 +76,10 @@ jobs:
           Invoke-RestMethod $links[$i].Trim("'") -OutFile 'cudainstaller.zip'
           & 'C:\Program Files\7-Zip\7z.exe' e cudainstaller.zip -oMSBuildExtensions -r *\MSBuildExtensions\* > $null
           Remove-Item 'cudainstaller.zip'
+          
+      - name: Install Visual Studio Integration
+        if: runner.os == 'Windows'
+        run: |
           $y = (gi '.\MSBuildExtensions').fullname + '\*'
           (gi 'C:\Program Files\Microsoft Visual Studio\2022\Enterprise\MSBuild\Microsoft\VC\*\BuildCustomizations').fullname.foreach({cp $y $_})
           $cupath = 'CUDA_PATH_V' + $env:CUDAVER.Remove($env:CUDAVER.LastIndexOf('.')).Replace('.','_')
@@ -77,88 +94,38 @@ jobs:
           mamba install -y 'cuda' $cudaChannels.TrimEnd().Split()
           if (!(mamba list cuda)[-1].contains('cuda')) {sleep -s 10; mamba install -y 'cuda' $cudaChannels.TrimEnd().Split()}
           if (!(mamba list cuda)[-1].contains('cuda')) {throw 'CUDA Toolkit failed to install!'}
-          python -m pip install cmake
-          
-      - name: Build llama.cpp
-        run: |
-          $packageVersion = [version]$env:PCKGVER.TrimStart('v')
-          $env:CUDA_PATH = $env:CONDA_PREFIX
-          $env:CUDA_HOME = $env:CONDA_PREFIX
-          if ($IsLinux) {$env:LD_LIBRARY_PATH = $env:CONDA_PREFIX + '/lib:' + $env:LD_LIBRARY_PATH; $env:CFLAGS = '-fPIC'; $env:CXXFLAGS = '-fPIC'}
-          $env:VERBOSE = '1'
-          $CMAKE_ARGS = '-DBUILD_SHARED_LIBS=ON -DLLAMA_CUBLAS=on -DCMAKE_CUDA_ARCHITECTURES=all'
-          if ($packageVersion -gt [version]'0.1.68' -and $packageVersion -lt [version]'0.1.71') {$CMAKE_ARGS = '-DBUILD_SHARED_LIBS=ON -DLLAMA_CUBLAS=on -DCMAKE_CUDA_ARCHITECTURES=35-real;37-real;52;61-real;70-real;72-real;75-real;80-real;86-real;89-real;90'}
-          if ($packageVersion -gt [version]'0.1.68' -and $packageVersion -lt [version]'0.1.71' -and [version]$env:CUDAVER -ge [version]'12.0') {$CMAKE_ARGS = '-DBUILD_SHARED_LIBS=ON -DLLAMA_CUBLAS=on -DCMAKE_CUDA_ARCHITECTURES=52;61-real;70-real;72-real;75-real;80-real;86-real;89-real;90'}
-          if ($packageVersion -gt [version]'0.1.68' -and $packageVersion -lt [version]'0.1.71' -and [version]$env:CUDAVER -lt [version]'11.8') {$CMAKE_ARGS = '-DBUILD_SHARED_LIBS=ON -DLLAMA_CUBLAS=on -DCMAKE_CUDA_ARCHITECTURES=35-real;37-real;52;61-real;70-real;72-real;75-real;80-real;86'}
-          if ($packageVersion -lt [version]'0.1.66') {$env:CUDAFLAGS = '-arch=all'}
-          if ($env:AVXVER -eq 'AVX') {$CMAKE_ARGS += ' -DLLAMA_AVX2=off -DLLAMA_FMA=off -DLLAMA_F16C=off'}
-          if ($env:AVXVER -eq 'AVX512') {$CMAKE_ARGS += ' -DLLAMA_AVX512=on'}
-          if ($env:AVXVER -eq 'basic') {$CMAKE_ARGS += ' -DLLAMA_AVX=off -DLLAMA_AVX2=off -DLLAMA_FMA=off -DLLAMA_F16C=off'}
-          Set-Location (Join-Path '.' 'vendor' 'llama.cpp' -resolve)
-          cmake -B build $CMAKE_ARGS.Split(' ')
-          cmake --build build --config Release --target llama
-          $llamalibname = if ($IsLinux) {'libllama.so'} else {'llama.dll'}
-          $llamalib = (dir (Join-Path '.' 'build' -resolve) -file -recurse).where({$_.name -eq $llamalibname})[0].fullname
-          Copy-Item $llamalib $env:GITHUB_WORKSPACE
-          echo "LLAMA_LIB=$llamalibname" >> $env:GITHUB_ENV
-        
-      - uses: actions/upload-artifact@v3
-        with:
-          name: ${{ format('{0}-llama-lib-{1}-{2}-{3}', runner.os, inputs.version, matrix.cuda, (matrix.releasetag == 'wheels' && 'AVX2' || matrix.releasetag)) }}
-          path: ${{ env.LLAMA_LIB }}
-          if-no-files-found: error
-          
-  build_wheels:
-    name: Build Wheel ${{ matrix.os }} ${{ matrix.pyver }} ${{ matrix.cuda }} ${{ matrix.releasetag == 'wheels' && 'AVX2' || matrix.releasetag }}
-    needs: build_libs
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        os: [ubuntu-20.04, windows-latest]
-        pyver: ["3.7", "3.8", "3.9", "3.10", "3.11"]
-        cuda: ["11.6.2", "11.7.1", "11.8.0", "12.0.1", "12.1.1", "12.2.0"]
-        releasetag: ["AVX","wheels","AVX512","basic"]
-    defaults:
-      run:
-        shell: pwsh
-    env:
-      CUDAVER: ${{ matrix.cuda }}
-      PCKGVER: ${{ inputs.version }}
-
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          repository: 'abetlen/llama-cpp-python'
-          ref: ${{ inputs.version }}
-          submodules: 'recursive'
-          
-      - uses: actions/setup-python@v4
-        with:
-          python-version: ${{ matrix.pyver }}
-          
-      - uses: actions/download-artifact@v3
-        with:
-          name: ${{ format('{0}-llama-lib-{1}-{2}-{3}', runner.os, inputs.version, matrix.cuda, (matrix.releasetag == 'wheels' && 'AVX2' || matrix.releasetag)) }}
-          path: ./llama_cpp
-          
-      - name: Install Dependencies
-        run: |
-          python -m pip install wheel scikit-build
+          python -m pip install build wheel
           
       - name: Build Wheel
         run: |
           $packageVersion = [version]$env:PCKGVER.TrimStart('v')
           $cudaVersion = $env:CUDAVER.Remove($env:CUDAVER.LastIndexOf('.')).Replace('.','')
-          $setup = Get-Content 'setup.py' -raw
-          $llamalib = if ($IsLinux) {'libllama.so'} else {'llama.dll'}
-          $regexstr = '(?s)(?<=package_dir\={"llama_cpp": "llama_cpp", "llama_cpp.server": "llama_cpp/server"},)\s+?(?=packages\=)'
-          if ($packageVersion -gt [version]'0.1.77') {$regexstr = '(?s)(?<=package_data={"llama_cpp": \[)"py.typed"(?=]},.+?packages=)'}
-          $regexmatch = [Regex]::Matches($setup,$regexstr)
-          if (!($regexmatch[0].Success)) {throw 'setup.py parsing failed'}
-          $newstr = if ($regexmatch[0].Value -eq '"py.typed"') {"'py.typed', '$llamalib'"} else {"`$&package_data={'llama_cpp': ['$llamalib']},`$&"}
-          $newsetup = $regexmatch[0].Result(('$`'+$newstr+'$'''))
-          New-Item 'setup.py' -itemType File -value $newsetup -force
-          python setup.py --skip-cmake bdist_wheel egg_info "--tag-build=+cu$cudaVersion"
+          $env:CUDA_PATH = $env:CONDA_PREFIX
+          $env:CUDA_HOME = $env:CONDA_PREFIX
+          if ($IsLinux) {$env:LD_LIBRARY_PATH = $env:CONDA_PREFIX + '/lib:' + $env:LD_LIBRARY_PATH}
+          $env:VERBOSE = '1'
+          $env:CMAKE_ARGS = '-DLLAMA_CUBLAS=on -DCMAKE_CUDA_ARCHITECTURES=all'
+          if ($packageVersion -gt [version]'0.1.68' -and $packageVersion -lt [version]'0.1.71') {$env:CMAKE_ARGS = '-DLLAMA_CUBLAS=on -DCMAKE_CUDA_ARCHITECTURES=35-real;37-real;52;61-real;70-real;72-real;75-real;80-real;86-real;89-real;90'}
+          if ($packageVersion -gt [version]'0.1.68' -and $packageVersion -lt [version]'0.1.71' -and [version]$env:CUDAVER -ge [version]'12.0') {$env:CMAKE_ARGS = '-DLLAMA_CUBLAS=on -DCMAKE_CUDA_ARCHITECTURES=52;61-real;70-real;72-real;75-real;80-real;86-real;89-real;90'}
+          if ($packageVersion -gt [version]'0.1.68' -and $packageVersion -lt [version]'0.1.71' -and [version]$env:CUDAVER -lt [version]'11.8') {$env:CMAKE_ARGS = '-DLLAMA_CUBLAS=on -DCMAKE_CUDA_ARCHITECTURES=35-real;37-real;52;61-real;70-real;72-real;75-real;80-real;86'}
+          if ($packageVersion -lt [version]'0.1.66') {$env:CUDAFLAGS = '-arch=all'}
+          if ($env:AVXVER -eq 'AVX') {$env:CMAKE_ARGS = $env:CMAKE_ARGS + ' -DLLAMA_AVX2=off -DLLAMA_FMA=off -DLLAMA_F16C=off'}
+          if ($env:AVXVER -eq 'AVX512') {$env:CMAKE_ARGS = $env:CMAKE_ARGS + ' -DLLAMA_AVX512=on'}
+          if ($env:AVXVER -eq 'basic') {$env:CMAKE_ARGS = $env:CMAKE_ARGS + ' -DLLAMA_AVX=off -DLLAMA_AVX2=off -DLLAMA_FMA=off -DLLAMA_F16C=off'}
+          $buildtag = "+cu$cudaVersion"
+          if ($packageVersion -lt [version]'0.2.0') {
+            $env:FORCE_CMAKE = '1'
+            python -m build --wheel -C--build-option=egg_info "-C--build-option=--tag-build=$buildtag"
+          } else {
+            $initpath = Join-Path '.' 'llama_cpp' '__init__.py' -resolve
+            $initcontent = Get-Content $initpath -raw
+            $regexstr = '(?s)(?<=__version__ \= ")\d+(?:\.\d+)*(?=")'
+            $regexmatch = [Regex]::Matches($initcontent,$regexstr)
+            if (!($regexmatch[0].Success)) {throw '__init__.py parsing failed'}
+            $newinit = $regexmatch[0].Result(('$`' + '$&' + $buildtag + '$'''))
+            New-Item $initpath -itemType File -value $newinit -force
+            python -m build --wheel
+          }
           
       - name: Upload files to a GitHub release
         id: upload-release

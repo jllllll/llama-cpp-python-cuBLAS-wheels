@@ -4,15 +4,15 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'Version tag of llama-cpp-python to build: v0.1.83'
-        default: 'v0.1.83'
+        description: 'Version tag of llama-cpp-python to build: v0.2.2'
+        default: 'v0.2.2'
         required: true
         type: string
   workflow_call:
     inputs:
       version:
-        description: 'Version tag of llama-cpp-python to build: v0.1.83'
-        default: 'v0.1.83'
+        description: 'Version tag of llama-cpp-python to build: v0.2.2'
+        default: 'v0.2.2'
         required: true
         type: string
 
@@ -20,130 +20,9 @@ permissions:
   contents: write
 
 jobs:
-  build_lib_lin:
-    name: Build ROCm Lib Linux
-    runs-on: ubuntu-20.04
-    strategy:
-      matrix:
-        rocm: ['5.4.2','5.5','5.6.1']
-    defaults:
-      run:
-        shell: pwsh
-    env:
-      ROCM_VERSION: ${{ matrix.rocm }}
-
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          repository: 'abetlen/llama-cpp-python'
-          ref: ${{ inputs.version }}
-          submodules: 'recursive'
-          
-      - name: Free Disk Space
-        uses: jlumbroso/free-disk-space@v1.2.0
-        with:
-          tool-cache: false
-          android: true
-          dotnet: true
-          haskell: true
-          large-packages: false
-          swap-storage: false
-          
-      - name: Install ROCm SDK
-        run: |
-          [ ! -d /etc/apt/keyrings ] && sudo mkdir --parents --mode=0755 /etc/apt/keyrings
-          wget https://repo.radeon.com/rocm/rocm.gpg.key -O - | gpg --dearmor | sudo tee /etc/apt/keyrings/rocm.gpg > /dev/null
-          echo "deb [arch=amd64 signed-by=/etc/apt/keyrings/rocm.gpg] https://repo.radeon.com/rocm/apt/$ROCM_VERSION focal main" | sudo tee --append /etc/apt/sources.list.d/rocm.list
-          echo -e 'Package: *\nPin: release o=repo.radeon.com\nPin-Priority: 600' | sudo tee /etc/apt/preferences.d/rocm-pin-600
-          sudo apt update
-          sudo apt install rocm-dev rocblas-dev hipblas-dev -y
-          echo "/opt/rocm/bin" >> $GITHUB_PATH
-          echo "ROCM_PATH=/opt/rocm" >> $GITHUB_ENV
-          echo "HIP_PATH=/opt/rocm" >> $env:GITHUB_ENV
-        shell: bash
-          
-      - uses: actions/setup-python@v4
-        with:
-          python-version: "3.10"
-          
-      - name: Install Dependencies
-        run: |
-          python -m pip install cmake ninja
-        
-      - name: Build Lib
-        run: |
-          $env:CC = '/opt/rocm/llvm/bin/clang'
-          $env:CXX = '/opt/rocm/llvm/bin/clang++'
-          $env:CFLAGS = '-fPIC'
-          $env:CXXFLAGS = '-fPIC'
-          $env:CMAKE_PREFIX_PATH = '/opt/rocm'
-          $env:VERBOSE = '1'
-          mkdir 'build'
-          Set-Location './vendor/llama.cpp'
-          $gputargets = 'gfx803;gfx900;gfx906:xnack-;gfx908:xnack-;gfx90a:xnack+;gfx90a:xnack-;gfx1010;gfx1012;gfx1030;gfx1100;gfx1101;gfx1102'
-          if ([version]$env:ROCM_VERSION -lt [version]'5.5') {$gputargets = 'gfx803;gfx900;gfx906:xnack-;gfx908:xnack-;gfx90a:xnack+;gfx90a:xnack-;gfx1010;gfx1012;gfx1030'}
-          cmake -B build -DLLAMA_HIPBLAS=ON -DBUILD_SHARED_LIBS=ON "-DGPU_TARGETS=$gputargets"
-          cmake --build build --config Release --target llama
-          $llamalib = (dir './build' -file -recurse).where({$_.name -eq 'libllama.so'})[0].fullname
-          Copy-Item $llamalib '../../build'
-        
-      - uses: actions/upload-artifact@v3
-        with:
-          name: ${{ format('{0}-rocm-lib-{1}-{2}', runner.os, inputs.version, matrix.rocm) }}
-          path: ./build/libllama.so
-          
-  build_lib_win:
-    name: Build ROCm Lib Windows
-    runs-on: windows-latest
-    defaults:
-      run:
-        shell: pwsh
-
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          repository: 'abetlen/llama-cpp-python'
-          ref: ${{ inputs.version }}
-          submodules: 'recursive'
-          
-      - name: Install ROCm SDK
-        run: |
-          curl -LO https://download.amd.com/developer/eula/rocm-hub/AMD-Software-PRO-Edition-23.Q3-Win10-Win11-For-HIP.exe
-          Start-Process 'AMD-Software-PRO-Edition-23.Q3-Win10-Win11-For-HIP.exe' -ArgumentList '-install' -NoNewWindow -Wait
-          echo "C:\Program Files\AMD\ROCm\5.5\bin" >> $env:GITHUB_PATH
-          echo 'ROCM_PATH=C:\Program Files\AMD\ROCm\5.5' >> $env:GITHUB_ENV
-          echo 'HIP_PATH=C:\Program Files\AMD\ROCm\5.5' >> $env:GITHUB_ENV
-          echo "ROCM_VERSION=5.5.1" >> $env:GITHUB_ENV
-          
-      - uses: actions/setup-python@v4
-        with:
-          python-version: "3.10"
-          
-      - name: Install Dependencies
-        run: |
-          python -m pip install cmake ninja
-        
-      - name: Build Lib
-        run: |
-          $env:CC = 'C:\Program Files\AMD\ROCm\5.5\bin\clang.exe'
-          $env:CXX = 'C:\Program Files\AMD\ROCm\5.5\bin\clang++.exe'
-          $env:CMAKE_PREFIX_PATH = 'C:\Program Files\AMD\ROCm\5.5'
-          $env:VERBOSE = '1'
-          mkdir 'build'
-          Set-Location '.\vendor\llama.cpp'
-          cmake -B build -G "Ninja" -DLLAMA_HIPBLAS=ON -DBUILD_SHARED_LIBS=ON '-DGPU_TARGETS=gfx803;gfx900;gfx906:xnack-;gfx908:xnack-;gfx90a:xnack+;gfx90a:xnack-;gfx1010;gfx1012;gfx1030;gfx1100;gfx1101;gfx1102'
-          cmake --build build --config Release --target llama
-          Copy-Item '.\build\bin\llama.dll' '..\..\build'
-        
-      - uses: actions/upload-artifact@v3
-        with:
-          name: ${{ format('{0}-rocm-lib-{1}-{2}', runner.os, inputs.version, '5.5.1') }}
-          path: ./build/llama.dll
-          
   build_wheels:
-    name: Build ${{ matrix.os }} ROCm ${{ matrix.rocm }} Wheel ${{ matrix.pyver }}
+    name: Build ${{ matrix.os }} ROCm ${{ matrix.rocm }} ${{ matrix.rename == '1' && 'Textgen Wheel' || 'Wheel' }} ${{ matrix.pyver }}
     runs-on: ${{ matrix.os }}
-    needs: ['build_lib_lin','build_lib_win']
     strategy:
       matrix:
         os: [ubuntu-20.04, windows-latest]
@@ -167,15 +46,42 @@ jobs:
       ROCM_VERSION: ${{ matrix.rocm }}
 
     steps:
+      - name: Free Disk Space
+        if: runner.os == 'Linux'
+        uses: jlumbroso/free-disk-space@v1.2.0
+        with:
+          tool-cache: false
+          android: true
+          dotnet: true
+          haskell: true
+          large-packages: false
+          swap-storage: false
+          
       - uses: actions/checkout@v4
         with:
           repository: 'abetlen/llama-cpp-python'
           ref: ${{ inputs.version }}
+          submodules: 'recursive'
           
-      - uses: actions/download-artifact@v3
-        with:
-          name: ${{ format('{0}-rocm-lib-{1}-{2}', runner.os, inputs.version, matrix.rocm) }}
-          path: ./llama_cpp
+      - name: Install Linux ROCm SDK
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          [ ! -d /etc/apt/keyrings ] && sudo mkdir --parents --mode=0755 /etc/apt/keyrings
+          wget https://repo.radeon.com/rocm/rocm.gpg.key -O - | gpg --dearmor | sudo tee /etc/apt/keyrings/rocm.gpg > /dev/null
+          echo "deb [arch=amd64 signed-by=/etc/apt/keyrings/rocm.gpg] https://repo.radeon.com/rocm/apt/$ROCM_VERSION focal main" | sudo tee --append /etc/apt/sources.list.d/rocm.list
+          echo -e 'Package: *\nPin: release o=repo.radeon.com\nPin-Priority: 600' | sudo tee /etc/apt/preferences.d/rocm-pin-600
+          sudo apt update
+          sudo apt install rocm-dev rocblas-dev hipblas-dev -y
+          
+      - name: Install Windows ROCm SDK
+        if: runner.os == 'Windows'
+        run: |
+          curl -LO https://download.amd.com/developer/eula/rocm-hub/AMD-Software-PRO-Edition-23.Q3-Win10-Win11-For-HIP.exe
+          Start-Process 'AMD-Software-PRO-Edition-23.Q3-Win10-Win11-For-HIP.exe' -ArgumentList '-install' -NoNewWindow -Wait
+          echo "C:\Program Files\AMD\ROCm\5.5\bin" >> $env:GITHUB_PATH
+          echo 'ROCM_PATH=C:\Program Files\AMD\ROCm\5.5' >> $env:GITHUB_ENV
+          echo 'HIP_PATH=C:\Program Files\AMD\ROCm\5.5' >> $env:GITHUB_ENV
           
       - uses: actions/setup-python@v4
         with:
@@ -189,32 +95,65 @@ jobs:
         if: matrix.rename == '1'
         run: |
           $packageVersion = [version]$env:PCKGVER.TrimStart('v')
-          $setup = Get-Content 'setup.py' -raw
           $pyproject = Get-Content 'pyproject.toml' -raw
           $cmakelists = Get-Content 'CMakeLists.txt' -raw
-          $regexstr = '(?s)name="llama_cpp_python",(.+)(package_dir={"llama_cpp": "llama_cpp", "llama_cpp.server": "llama_cpp/server"},.+?packages=\["llama_cpp", "llama_cpp.server"],)'
-          if ($packageVersion -gt [version]'0.1.77') {$regexstr = '(?s)name="llama_cpp_python",(.+)(package_dir={"llama_cpp": "llama_cpp", "llama_cpp.server": "llama_cpp/server"},.+?package_data={"llama_cpp": \["py.typed"]},.+?packages=\["llama_cpp", "llama_cpp.server"],)'}
-          $regexmatch = [Regex]::Matches($setup,$regexstr)
-          if (!($regexmatch[0].Success)) {throw 'setup.py parsing failed'}
-          $newstr = 'name="llama_cpp_python_cuda",' + $regexmatch[0].Groups[1].Value + $regexmatch[0].Groups[2].Value.Replace('llama_cpp','llama_cpp_cuda')
-          $newsetup = $regexmatch[0].Result(('$`'+$newstr+'$'''))
-          $regexstr = '(?s)(?<=name = ")llama_cpp_python(".+?packages = \[{include = ")llama_cpp(".+)'
-          $regexmatch = [Regex]::Matches($pyproject,$regexstr)
-          if (!($regexmatch[0].Success)) {throw 'pyproject.toml parsing failed'}
-          $newpyproject = $regexmatch[0].Result(('$`'+'llama_cpp_python_cuda'+'$1llama_cpp_cuda$2'))
+          if ($packageVersion -lt [version]'0.2.0') {
+            $setup = Get-Content 'setup.py' -raw
+            $regexstr = '(?s)name="llama_cpp_python",(.+)(package_dir={"llama_cpp": "llama_cpp", "llama_cpp.server": "llama_cpp/server"},.+?packages=\["llama_cpp", "llama_cpp.server"],)'
+            if ($packageVersion -gt [version]'0.1.77') {$regexstr = '(?s)name="llama_cpp_python",(.+)(package_dir={"llama_cpp": "llama_cpp", "llama_cpp.server": "llama_cpp/server"},.+?package_data={"llama_cpp": \["py.typed"]},.+?packages=\["llama_cpp", "llama_cpp.server"],)'}
+            $regexmatch = [Regex]::Matches($setup,$regexstr)
+            if (!($regexmatch[0].Success)) {throw 'setup.py parsing failed'}
+            $newstr = 'name="llama_cpp_python_cuda",' + $regexmatch[0].Groups[1].Value + $regexmatch[0].Groups[2].Value.Replace('llama_cpp','llama_cpp_cuda')
+            $newsetup = $regexmatch[0].Result(('$`'+$newstr+'$'''))
+            New-Item 'setup.py' -itemType File -value $newsetup -force
+            $regexstr = '(?s)(?<=name = ")llama_cpp_python(".+?packages = \[{include = ")llama_cpp(".+)'
+            $regexmatch = [Regex]::Matches($pyproject,$regexstr)
+            if (!($regexmatch[0].Success)) {throw 'pyproject.toml parsing failed'}
+            $newpyproject = $regexmatch[0].Result(('$`'+'llama_cpp_python_cuda'+'$1llama_cpp_cuda$2'))
+          } else {
+            $regexstr = '(?s)(?<=\[project]\s+?name = ")llama_cpp_python(".+?all = \[\s+?")llama_cpp_python(\[.+?wheel.packages = \[")llama_cpp("].+?input = ")llama_cpp(?=/__init__.py")'
+            $regexmatch = [Regex]::Matches($pyproject,$regexstr)
+            if (!($regexmatch[0].Success)) {throw 'pyproject.toml parsing failed'}
+            $newpyproject = $regexmatch[0].Result(('$`' + 'llama_cpp_python_cuda' + '$1llama_cpp_cuda$2' + 'llama_cpp_cuda$3llama_cpp_cuda' + '$'''))
+          }
           Copy-Item 'llama_cpp' 'llama_cpp_cuda' -recurse
-          New-Item 'setup.py' -itemType File -value $newsetup -force
           New-Item 'pyproject.toml' -itemType File -value $newpyproject -force
           New-Item 'CMakeLists.txt' -itemType File -value $cmakelists.Replace('llama_cpp','llama_cpp_cuda') -force
         
       - name: Build Wheel
         run: |
+          if ($IsLinux) {
+            $env:CC = '/opt/rocm/llvm/bin/clang'
+            $env:CXX = '/opt/rocm/llvm/bin/clang++'
+            $env:CFLAGS = '-fPIC'
+            $env:CXXFLAGS = '-fPIC'
+            $env:CMAKE_PREFIX_PATH = '/opt/rocm'
+            $env:GITHUB_PATH = "/opt/rocm/bin:$env:GITHUB_PATH"
+            $env:ROCM_PATH = "/opt/rocm"
+            $env:HIP_PATH = "/opt/rocm"
+          } else {
+            $env:CC = 'C:\Program Files\AMD\ROCm\5.5\bin\clang.exe'
+            $env:CXX = 'C:\Program Files\AMD\ROCm\5.5\bin\clang++.exe'
+            $env:CMAKE_PREFIX_PATH = 'C:\Program Files\AMD\ROCm\5.5'
+          }
+          $env:VERBOSE = '1'
           $packageVersion = [version]$env:PCKGVER.TrimStart('v')
-          $setup = Get-Content 'setup.py' -raw
-          $llamalib = if ($IsLinux) {'libllama.so'} else {'llama.dll'}
-          $newsetup = $setup.Replace('package_data={"llama_cpp": ["py.typed"]},',"package_data={'llama_cpp': ['py.typed', '$llamalib']},")
-          New-Item 'setup.py' -itemType File -value $newsetup -force
-          python setup.py --skip-cmake bdist_wheel egg_info "--tag-build=+rocm$env:ROCM_VERSION"
+          $gputargets = 'gfx803;gfx900;gfx906:xnack-;gfx908:xnack-;gfx90a:xnack+;gfx90a:xnack-;gfx1010;gfx1012;gfx1030;gfx1100;gfx1101;gfx1102'
+          if ([version]$env:ROCM_VERSION -lt [version]'5.5') {$gputargets = 'gfx803;gfx900;gfx906:xnack-;gfx908:xnack-;gfx90a:xnack+;gfx90a:xnack-;gfx1010;gfx1012;gfx1030'}
+          $env:CMAKE_ARGS = "-GNinja -DLLAMA_HIPBLAS=ON -DGPU_TARGETS=$gputargets"
+          $buildtag = "+rocm$env:ROCM_VERSION"
+          if ($packageVersion -lt [version]'0.2.0') {
+            python -m build --wheel -C--build-option=egg_info "-C--build-option=--tag-build=$buildtag"
+          } else {
+            $initpath = Join-Path '.' '${{ matrix.rename == '1' && 'llama_cpp_cuda' || 'llama_cpp' }}' '__init__.py' -resolve
+            $initcontent = Get-Content $initpath -raw
+            $regexstr = '(?s)(?<=__version__ \= ")\d+(?:\.\d+)*(?=")'
+            $regexmatch = [Regex]::Matches($initcontent,$regexstr)
+            if (!($regexmatch[0].Success)) {throw '__init__.py parsing failed'}
+            $newinit = $regexmatch[0].Result(('$`' + '$&' + $buildtag + '$'''))
+            New-Item $initpath -itemType File -value $newinit -force
+            python -m build --wheel
+          }
           
       - name: Upload files to a GitHub release
         id: upload-release

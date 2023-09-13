@@ -4,7 +4,7 @@ For the most part, they are written to account for changes in every version sinc
 Primary workflows used for new llama-cpp-python releases
 ----
 - `build-wheels.yml`
-  - This workflow will build around 240 wheels for various CUDA, Python and CPU configurations. After this, it will call the `build-wheels-cpu.yml` workflow.
+  - This workflow will build around 192 wheels for various CUDA, Python and CPU configurations. After this, it will call the `build-wheels-cpu.yml` workflow.
 - `build-wheels-full-release.yml`
   - This workflow calls these workflows in order: `build-wheels.yml build-wheels-oobabooga.yml build-wheels-rocm-full.yml`
   - Somewhere around 404 wheels are produced in total, last I checked. This number will likely increase as additional builds, such as MacOS Metal, are eventually included.
@@ -15,7 +15,9 @@ Primary workflows used for new llama-cpp-python releases
   - This workflow builds CPU-only wheels for all of the CPU configurations supported by the other workflows.
   - It was made because the wheels in the main repo are only built to support the default configuration of `AVX2`.
 
-These workflows, and their dependents, were recently optimized to significantly reduce run times from 6 hours for the longest down to around 2 hours.
+~~These workflows, and their dependents, were recently optimized to significantly reduce run times from 6 hours for the longest down to around 2 hours.~~  
+Workflow optimizations have been made incompatible with llama-cpp-python 0.2.X+ due to abetlen switching the build backend to one that does not support modifications of the build process.  
+Copies of the optimized workflows can be found in the `old_workflows` directory.
 
 Renamed package workflows
 ----
@@ -35,8 +37,7 @@ Configuration-specific workflows
 - `*-avx.yml`
 
 These are copies of other workflows with build matrices limited to specific configurations.  
-For the most part, I made these to rebuild previous versions of llama-cpp-python as needed to support new configurations that were added to the main workflows.  
-They do not currently include the recent build optimizations I made to the main workflows. As a result, they are much slower than they would be otherwise.
+For the most part, I made these to rebuild previous versions of llama-cpp-python as needed to support new configurations that were added to the main workflows.
 
 Batch build workflows
 ----
@@ -57,11 +58,6 @@ Experimental workflows used for more specialized builds
   - This workflow is much like the previous. It additionally builds `llama_cpp_python_cuda` wheels.
 - `build-wheels-rocm-full.yml`
   - This workflow is essentially a combination of the previous 2.
-- `build-wheels-macos.yml`
-  - Not uploaded yet pending an overhaul to account for recent Metal build changes.
-  - This workflow builds wheels with MacOS Metal support for MacOS 11, 12 and 13.
-  - Builds `universal2` wheels for Intel and Apple Silicon CPU support.
-  - Is currently experimental and likely does not produce functional Metal wheels. I do not have a Mac to test with, so I can only go off of build logs.
 
 Utility workflows
 ----

@@ -4,7 +4,7 @@ Wheels for [llama-cpp-python](https://github.com/abetlen/llama-cpp-python) compi
 Requirements:
 - Windows and Linux x86_64
 - CUDA 11.6 - 12.2
-- CPython 3.7 - 3.11
+- CPython 3.8 - 3.11
 
 llama.cpp, and llama-cpp-python by extension, has migrated to using the new GGUF format and has dropped support for GGML.
 This applies to version 0.1.79+.
