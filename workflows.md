@@ -7,10 +7,10 @@ Primary workflows used for new llama-cpp-python releases
   - This workflow will build around 192 wheels for various CUDA, Python and CPU configurations. After this, it will call the `build-wheels-cpu.yml` workflow.
 - `build-wheels-full-release.yml`
   - This workflow calls these workflows in order: `build-wheels.yml build-wheels-oobabooga.yml build-wheels-rocm-full.yml`
-  - Somewhere around 404 wheels are produced in total, last I checked. This number will likely increase as additional builds, such as MacOS Metal, are eventually included.
+  - Somewhere around 370 wheels are produced in total, last I checked. This number will likely increase as additional builds, such as MacOS Metal, are eventually included.
 - `build-wheels-prioritized-release.yml`
   - This workflow is much like `build-wheels-full-release.yml`, except `build-wheels.yml` and `build-wheels-oobabooga.yml` are incorporated into the workflow instead of being called due to minor modifications.
-  - This workflow is configured to build the wheels used by [text-generation-webui](https://github.com/oobabooga/text-generation-webui) first. This is because the long runtime of the workflow (originally 6 hours) was causing significant delays in updating the project.
+  - This workflow is configured to build the wheels used by [text-generation-webui](https://github.com/oobabooga/text-generation-webui) first. This is because the long runtime of the workflow (currently 5 - 6 hours) was causing significant delays in updating the project.
 - `build-wheels-cpu.yml`
   - This workflow builds CPU-only wheels for all of the CPU configurations supported by the other workflows.
   - It was made because the wheels in the main repo are only built to support the default configuration of `AVX2`.
