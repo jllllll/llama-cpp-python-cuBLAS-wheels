@@ -6,7 +6,7 @@ Primary workflows used for new llama-cpp-python releases
 - `build-wheels.yml`
   - This workflow will build around 192 wheels for various CUDA, Python and CPU configurations. After this, it will call the `build-wheels-cpu.yml` workflow.
 - `build-wheels-full-release.yml`
-  - This workflow calls these workflows in order: `build-wheels.yml build-wheels-oobabooga.yml build-wheels-rocm-full.yml`
+  - This workflow calls these workflows in order: `build-wheels.yml build-wheels-oobabooga.yml build-wheels-rocm-full.yml build-wheels-macos.yml`
   - Somewhere around 370 wheels are produced in total, last I checked. This number will likely increase as additional builds, such as MacOS Metal, are eventually included.
 - `build-wheels-prioritized-release.yml`
   - This workflow is much like `build-wheels-full-release.yml`, except `build-wheels.yml` and `build-wheels-oobabooga.yml` are incorporated into the workflow instead of being called due to minor modifications.
@@ -58,6 +58,10 @@ Experimental workflows used for more specialized builds
   - This workflow is much like the previous. It additionally builds `llama_cpp_python_cuda` wheels.
 - `build-wheels-rocm-full.yml`
   - This workflow is essentially a combination of the previous 2.
+- `build-wheels-macos.yml`
+  - This workflow builds wheels with MacOS Metal support for MacOS 11, 12 and 13.
+  - Builds separate wheels for Intel and Apple Silicon CPU support.
+  - Is currently experimental and may not produce functional Metal wheels. I do not have a Mac to test with, so I can only go off of build logs.
 
 Utility workflows
 ----

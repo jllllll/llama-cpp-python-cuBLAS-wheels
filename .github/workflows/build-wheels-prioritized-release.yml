@@ -584,3 +584,10 @@ jobs:
     uses: ./.github/workflows/build-wheels-rocm-full.yml
     with:
       version: ${{ inputs.version }}
+      
+  build_wheels_macos:
+    name: Build MacOS Metal Wheels
+    needs: build_wheels_rocm
+    uses: ./.github/workflows/build-wheels-macos.yml
+    with:
+      version: ${{ inputs.version }}

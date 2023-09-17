@@ -1,0 +1,71 @@
+name: Build Wheels MacOS
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version tag of llama-cpp-python to build: v0.2.6'
+        default: 'v0.2.6'
+        required: true
+        type: string
+  workflow_call:
+    inputs:
+      version:
+        description: 'Version tag of llama-cpp-python to build: v0.2.6'
+        default: 'v0.2.6'
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  build_wheels_main:
+    name: ${{ matrix.os }} ${{ matrix.arch }} Python ${{ matrix.pyver }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [macos-13, macos-12, macos-11]
+        arch: ["x86_64","arm64"]
+        pyver: ["3.10", "3.7", "3.8", "3.9", "3.11"]
+    env:
+      CMAKE_OSX_ARCHITECTURES: ${{ matrix.arch }}
+      PCKGVER: ${{ inputs.version }}
+
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          repository: 'abetlen/llama-cpp-python'
+          ref: ${{ inputs.version }}
+          submodules: 'recursive'
+          
+      - uses: actions/setup-python@v3
+        with:
+          python-version: ${{ matrix.pyver }}
+          
+      - name: Install Dependencies
+        run: |
+          python -m pip install build wheel cmake
+          
+      - name: Build Wheel
+        run: |
+          export CMAKE_ARGS="-DLLAMA_METAL=on"
+          [[ "$CMAKE_OSX_ARCHITECTURES" = "x86_64" ]] && export CMAKE_ARGS="-DLLAMA_AVX=off -DLLAMA_AVX2=off -DLLAMA_FMA=off -DLLAMA_F16C=off -DLLAMA_METAL=on"
+          CMAKE_ARGS="-DLLAMA_METAL=on" VERBOSE=1 python -m build --wheel
+          
+      - name: Upload files to a GitHub release
+        id: upload-release
+        uses: svenstaro/upload-release-action@2.6.1
+        continue-on-error: true
+        with:
+          file: ./dist/*.whl
+          tag: 'metal'
+          file_glob: true
+          make_latest: false
+          overwrite: true
+        
+      - uses: actions/upload-artifact@v3
+        if: steps.upload-release.outcome == 'failure'
+        with:
+          name: macos-wheels
+          path: ./dist/*.whl

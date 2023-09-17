@@ -32,3 +32,10 @@ jobs:
     uses: ./.github/workflows/build-wheels-rocm-full.yml
     with:
       version: ${{ inputs.version }}
+      
+  run_macos:
+    name: Build MacOS Metal Wheels
+    needs: run_rocm
+    uses: ./.github/workflows/build-wheels-macos.yml
+    with:
+      version: ${{ inputs.version }}
