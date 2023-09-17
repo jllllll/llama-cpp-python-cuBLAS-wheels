@@ -27,7 +27,7 @@ jobs:
       matrix:
         os: [macos-13, macos-12, macos-11]
         arch: ["x86_64","arm64"]
-        pyver: ["3.10", "3.7", "3.8", "3.9", "3.11"]
+        pyver: ["3.10", "3.8", "3.9", "3.11"]
     env:
       CMAKE_OSX_ARCHITECTURES: ${{ matrix.arch }}
       PCKGVER: ${{ inputs.version }}
