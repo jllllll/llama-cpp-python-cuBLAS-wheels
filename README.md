@@ -2,7 +2,7 @@
 Wheels for [llama-cpp-python](https://github.com/abetlen/llama-cpp-python) compiled with cuBLAS support.
 
 Requirements:
-- Windows and Linux x86_64
+- Windows x64, Linux x64, or MacOS 11.7+
 - CUDA 11.6 - 12.2
 - CPython 3.8 - 3.11
 
@@ -10,6 +10,7 @@ llama.cpp, and llama-cpp-python by extension, has migrated to using the new GGUF
 This applies to version 0.1.79+.
 
 ROCm builds for AMD GPUs: https://github.com/jllllll/llama-cpp-python-cuBLAS-wheels/releases/tag/rocm
+Metal builds for MacOS 11.7+: https://github.com/jllllll/llama-cpp-python-cuBLAS-wheels/releases/tag/metal
 
 Installation instructions:
 ---
