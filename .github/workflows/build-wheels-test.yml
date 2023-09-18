@@ -4,15 +4,15 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'Version tag of llama-cpp-python to build: v0.2.6'
-        default: 'v0.2.6'
+        description: 'Version tag of llama-cpp-python to build: v0.1.85'
+        default: 'v0.1.85'
         required: false
         type: string
   workflow_call:
     inputs:
       version:
-        description: 'Version tag of llama-cpp-python to build: v0.2.6'
-        default: 'v0.2.6'
+        description: 'Version tag of llama-cpp-python to build: v0.1.85'
+        default: 'v0.1.85'
         required: false
         type: string
 
@@ -47,10 +47,9 @@ jobs:
       - name: Build Wheel
         run: |
           export CMAKE_ARGS="-DLLAMA_METAL=on"
-          CMAKE_ARGS="-DLLAMA_METAL=on" VERBOSE=1 python -m build --wheel
+          VERBOSE=1 python -m build --wheel
         
       - uses: actions/upload-artifact@v3
-        if: steps.upload-release.outcome == 'failure'
         with:
           name: ${{ format('wheel-{0}-{1}', matrix.os, matrix.arch)  }}
           path: ./dist/*.whl
