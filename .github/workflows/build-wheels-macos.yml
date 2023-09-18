@@ -50,7 +50,8 @@ jobs:
       - name: Build Wheel
         run: |
           export CMAKE_ARGS="-DLLAMA_METAL=on"
-          [[ "$CMAKE_OSX_ARCHITECTURES" = "x86_64" ]] && export CMAKE_ARGS="-DLLAMA_AVX=off -DLLAMA_AVX2=off -DLLAMA_FMA=off -DLLAMA_F16C=off -DLLAMA_METAL=on"
+          [[ "$CMAKE_OSX_ARCHITECTURES" = "x86_64" ]] && export CMAKE_ARGS="-DLLAMA_AVX=off -DLLAMA_AVX2=off -DLLAMA_FMA=off -DLLAMA_F16C=off -DLLAMA_METAL=on" && export ARCHFLAGS="-arch x86_64"
+          [[ "$CMAKE_OSX_ARCHITECTURES" = "arm64" ]] && export ARCHFLAGS="-arch arm64"
           CMAKE_ARGS="-DLLAMA_METAL=on" VERBOSE=1 python -m build --wheel
           
       - name: Upload files to a GitHub release
