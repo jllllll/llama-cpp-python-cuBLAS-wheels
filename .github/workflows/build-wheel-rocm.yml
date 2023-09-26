@@ -105,6 +105,10 @@ jobs:
             $env:CC = 'C:\Program Files\AMD\ROCm\5.5\bin\clang.exe'
             $env:CXX = 'C:\Program Files\AMD\ROCm\5.5\bin\clang++.exe'
             $env:CMAKE_PREFIX_PATH = 'C:\Program Files\AMD\ROCm\5.5'
+            $cmakelists = Get-Content 'CMakeLists.txt' -raw
+            $regexstr = '(?s)(?<=\n)\s+?install\(\s+FILES \$\<TARGET_RUNTIME_DLLS.+/llama_cpp(?:_cuda)?\s+\)\s+?(?=endif\(\))'
+            $regexmatch = [Regex]::Matches($cmakelists,$regexstr)
+            if ($regexmatch[0].Success) {New-Item 'CMakeLists.txt' -itemType File -value $regexmatch[0].Result('$`$''') -force}
           }
           $env:VERBOSE = '1'
           $packageVersion = [version]$env:PCKGVER.TrimStart('v')
