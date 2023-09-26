@@ -4,30 +4,21 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'Version tag of llama-cpp-python to build: v0.1.85'
-        default: 'v0.1.85'
-        required: false
-        type: string
-  workflow_call:
-    inputs:
-      version:
-        description: 'Version tag of llama-cpp-python to build: v0.1.85'
-        default: 'v0.1.85'
-        required: false
+        description: 'Version tag of llama-cpp-python to build: v0.2.6'
+        default: 'v0.2.6'
+        required: true
         type: string
 
 jobs:
   build_wheels_main:
-    name: ${{ matrix.os }} ${{ matrix.pyver }} ${{ matrix.avx }}
+    name: ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
         os: [macos-13, macos-12, macos-11]
-        arch: ["x86_64","arm64"]
-        pyver: ["3.10"]
+        pyver: ["3.10", "3.8", "3.9", "3.11"]
     env:
-      CMAKE_OSX_ARCHITECTURES: ${{ matrix.arch }}
-      PCKGVER: ${{ inputs.version }}
+      OSVER: ${{ matrix.os }}
 
     steps:
       - uses: actions/checkout@v4
@@ -46,10 +37,32 @@ jobs:
           
       - name: Build Wheel
         run: |
+          XCODE15PATH="/Applications/Xcode_15.0.app/Contents/Developer"
+          XCODE15BINPATH="${XCODE15PATH}/Toolchains/XcodeDefault.xctoolchain/usr/bin"
           export CMAKE_ARGS="-DLLAMA_METAL=on"
+          [[ "$OSVER" == "macos-13" ]] && export CC="${XCODE15BINPATH}/cc" && export CXX="${XCODE15BINPATH}/c++" && export MACOSX_DEPLOYMENT_TARGET="13.0"
+          [[ "$OSVER" == "macos-12" ]] && export MACOSX_DEPLOYMENT_TARGET="12.0"
+          [[ "$OSVER" == "macos-11" ]] && export MACOSX_DEPLOYMENT_TARGET="11.0"
+          
+          export CMAKE_OSX_ARCHITECTURES="arm64" && export ARCHFLAGS="-arch arm64"
           VERBOSE=1 python -m build --wheel
+          
+          if [[ "$OSVER" == "macos-13" ]]; then
+            export SDKROOT="${XCODE15PATH}/Platforms/MacOSX.platform/Developer/SDKs/MacOSX14.0.sdk"
+            export MACOSX_DEPLOYMENT_TARGET="14.0"
+            VERBOSE=1 python -m build --wheel
+          fi
+          
+          export CMAKE_OSX_ARCHITECTURES="x86_64" && export CMAKE_ARGS="-DLLAMA_AVX=off -DLLAMA_AVX2=off -DLLAMA_FMA=off -DLLAMA_F16C=off -DLLAMA_METAL=on" && export ARCHFLAGS="-arch x86_64"
+          VERBOSE=1 python -m build --wheel
+          
+          if [[ "$OSVER" == "macos-13" ]]; then
+            export SDKROOT="${XCODE15PATH}/Platforms/MacOSX.platform/Developer/SDKs/MacOSX14.0.sdk"
+            export MACOSX_DEPLOYMENT_TARGET="14.0"
+            VERBOSE=1 python -m build --wheel
+          fi
         
       - uses: actions/upload-artifact@v3
         with:
-          name: ${{ format('wheel-{0}-{1}', matrix.os, matrix.arch)  }}
+          name: macos-wheels
           path: ./dist/*.whl
