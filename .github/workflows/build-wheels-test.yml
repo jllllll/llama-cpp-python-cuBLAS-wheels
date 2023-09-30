@@ -1,16 +1,197 @@
 name: Build Wheels test
 
-on: workflow_dispatch
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version tag of llama-cpp-python to build: v0.2.9'
+        default: 'v0.2.9'
+        required: true
+        type: string
 
 jobs:
+  define_matrix_main:
+    name: Define Build Matrix
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
+    defaults:
+      run:
+        shell: pwsh
+    env:
+      CONFIGIN: 'cuda:11.8.0;releasetag:basic'
+      EXCLUDEIN: 'pyver:3.8'
+        
+    steps:
+      - name: Define Job Output
+        id: set-matrix
+        run: |
+          $matrix = @{
+              'os' = 'ubuntu-20.04', 'windows-latest'
+              'pyver' = "3.10", "3.8", "3.9", "3.11"
+              'cuda' = "11.6.2", "11.7.1", "11.8.0", "12.0.1", "12.1.1", "12.2.0"
+              'releasetag' = "AVX", "wheels", "AVX512", "basic"
+          }
+          
+          if ($env:CONFIGIN -ne 'Default') {$env:CONFIGIN.split(';').foreach({$matrix[$_.split(':')[0]] = $_.split(':')[1].split(',')})}
+          
+          if ($env:EXCLUDEIN -ne 'None') {
+              $exclusions = @()
+              $exclusions += $env:EXCLUDEIN.split(';').replace(':','=').replace(',',"`n") | ConvertFrom-StringData
+              $matrix['exclude'] = $exclusions
+          }
+          
+          $matrixOut = ConvertTo-Json $matrix -Compress
+          Write-Output ('matrix=' + $matrixOut) >> $env:GITHUB_OUTPUT
+          
   build_wheels_main:
-    name: ${{ matrix.os }} Python ${{ matrix.pyver }}
+    name: Build Wheel ${{ matrix.os }} ${{ matrix.pyver }} ${{ matrix.cuda }} ${{ matrix.releasetag == 'wheels' && 'AVX2' || matrix.releasetag }}
+    needs: define_matrix_main
     runs-on: ${{ matrix.os }}
     strategy:
-      matrix:
-        os: [macos-13]
-        pyver: ["3.10", "3.8", "3.9", "3.11"]
-        pckgver: ['v0.2.5','v0.2.6','v0.2.7']
+      matrix: ${{ fromJSON(needs.define_matrix_main.outputs.matrix) }}
+    defaults:
+      run:
+        shell: pwsh
+    env:
+      CUDAVER: ${{ matrix.cuda }}
+      AVXVER: ${{ matrix.releasetag }}
+      PCKGVER: ${{ inputs.version }}
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: 'abetlen/llama-cpp-python'
+          ref: ${{ inputs.version }}
+          submodules: 'recursive'
+          
+      - uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.pyver }}
+        
+      - name: Setup Mamba
+        uses: conda-incubator/setup-miniconda@v2.2.0
+        with:
+          activate-environment: "build"
+          python-version: ${{ matrix.pyver }}
+          miniforge-variant: Mambaforge
+          miniforge-version: latest
+          use-mamba: true
+          add-pip-as-python-dependency: true
+          auto-activate-base: false
+          
+      - name: VS Integration Cache
+        id: vs-integration-cache
+        if: runner.os == 'Windows'
+        uses: actions/cache@v3.3.2
+        with:
+          path: ./MSBuildExtensions
+          key: cuda-${{ matrix.cuda }}-vs-integration
+          
+      - name: Get Visual Studio Integration
+        if: runner.os == 'Windows' && steps.vs-integration-cache.outputs.cache-hit != 'true'
+        run: |
+          if ($env:CUDAVER -eq '12.1.1') {$x = '12.1.0'} else {$x = $env:CUDAVER}
+          $links = (Invoke-RestMethod 'https://github.com/Jimver/cuda-toolkit/raw/257a101bc5c656053b5dc220126744980ef7f5b8/src/links/windows-links.ts').Trim().split().where({$_ -ne ''})
+          for ($i=$q=0;$i -lt $links.count -and $q -lt 2;$i++) {if ($links[$i] -eq "'$x',") {$q++}}
+          Invoke-RestMethod $links[$i].Trim("'") -OutFile 'cudainstaller.zip'
+          & 'C:\Program Files\7-Zip\7z.exe' e cudainstaller.zip -oMSBuildExtensions -r *\MSBuildExtensions\* > $null
+          Remove-Item 'cudainstaller.zip'
+          
+      - name: Install Visual Studio Integration
+        if: runner.os == 'Windows'
+        run: |
+          $y = (gi '.\MSBuildExtensions').fullname + '\*'
+          (gi 'C:\Program Files\Microsoft Visual Studio\2022\Enterprise\MSBuild\Microsoft\VC\*\BuildCustomizations').fullname.foreach({cp $y $_})
+          $cupath = 'CUDA_PATH_V' + $env:CUDAVER.Remove($env:CUDAVER.LastIndexOf('.')).Replace('.','_')
+          echo "$cupath=$env:CONDA_PREFIX" >> $env:GITHUB_ENV
+          
+      - name: Install Dependencies
+        run: |
+          $cudaVersion = $env:CUDAVER
+          $cudaChannels = ''
+          $cudaNum = [int]$cudaVersion.substring($cudaVersion.LastIndexOf('.')+1)
+          while ($cudaNum -ge 0) { $cudaChannels += '-c nvidia/label/cuda-' + $cudaVersion.Remove($cudaVersion.LastIndexOf('.')+1) + $cudaNum + ' '; $cudaNum-- }
+          mamba install -y 'cuda' $cudaChannels.TrimEnd().Split()
+          if (!(mamba list cuda)[-1].contains('cuda')) {sleep -s 10; mamba install -y 'cuda' $cudaChannels.TrimEnd().Split()}
+          if (!(mamba list cuda)[-1].contains('cuda')) {throw 'CUDA Toolkit failed to install!'}
+          python -m pip install build wheel
+          
+      - name: Build Wheel
+        run: |
+          $packageVersion = [version]$env:PCKGVER.TrimStart('v')
+          $cudaVersion = $env:CUDAVER.Remove($env:CUDAVER.LastIndexOf('.')).Replace('.','')
+          $env:CUDA_PATH = $env:CONDA_PREFIX
+          $env:CUDA_HOME = $env:CONDA_PREFIX
+          if ($IsLinux) {$env:LD_LIBRARY_PATH = $env:CONDA_PREFIX + '/lib:' + $env:LD_LIBRARY_PATH}
+          $env:VERBOSE = '1'
+          $env:CMAKE_ARGS = '-DLLAMA_CUBLAS=on -DCMAKE_CUDA_ARCHITECTURES=all'
+          if ($packageVersion -gt [version]'0.1.68' -and $packageVersion -lt [version]'0.1.71') {$env:CMAKE_ARGS = '-DLLAMA_CUBLAS=on -DCMAKE_CUDA_ARCHITECTURES=35-real;37-real;52;61-real;70-real;72-real;75-real;80-real;86-real;89-real;90'}
+          if ($packageVersion -gt [version]'0.1.68' -and $packageVersion -lt [version]'0.1.71' -and [version]$env:CUDAVER -ge [version]'12.0') {$env:CMAKE_ARGS = '-DLLAMA_CUBLAS=on -DCMAKE_CUDA_ARCHITECTURES=52;61-real;70-real;72-real;75-real;80-real;86-real;89-real;90'}
+          if ($packageVersion -gt [version]'0.1.68' -and $packageVersion -lt [version]'0.1.71' -and [version]$env:CUDAVER -lt [version]'11.8') {$env:CMAKE_ARGS = '-DLLAMA_CUBLAS=on -DCMAKE_CUDA_ARCHITECTURES=35-real;37-real;52;61-real;70-real;72-real;75-real;80-real;86'}
+          if ($packageVersion -lt [version]'0.1.66') {$env:CUDAFLAGS = '-arch=all'}
+          if ($env:AVXVER -eq 'AVX') {$env:CMAKE_ARGS = $env:CMAKE_ARGS + ' -DLLAMA_AVX2=off -DLLAMA_FMA=off -DLLAMA_F16C=off'}
+          if ($env:AVXVER -eq 'AVX512') {$env:CMAKE_ARGS = $env:CMAKE_ARGS + ' -DLLAMA_AVX512=on'}
+          if ($env:AVXVER -eq 'basic') {$env:CMAKE_ARGS = $env:CMAKE_ARGS + ' -DLLAMA_AVX=off -DLLAMA_AVX2=off -DLLAMA_FMA=off -DLLAMA_F16C=off'}
+          $buildtag = "+cu$cudaVersion"
+          if ($packageVersion -lt [version]'0.2.0') {
+            $env:FORCE_CMAKE = '1'
+            python -m build --wheel -C--build-option=egg_info "-C--build-option=--tag-build=$buildtag"
+          } else {
+            $initpath = Join-Path '.' 'llama_cpp' '__init__.py' -resolve
+            $initcontent = Get-Content $initpath -raw
+            $regexstr = '(?s)(?<=__version__ \= ")\d+(?:\.\d+)*(?=")'
+            $regexmatch = [Regex]::Matches($initcontent,$regexstr)
+            if (!($regexmatch[0].Success)) {throw '__init__.py parsing failed'}
+            $newinit = $regexmatch[0].Result(('$`' + '$&' + $buildtag + '$'''))
+            New-Item $initpath -itemType File -value $newinit -force
+            python -m build --wheel
+          }
+        
+      - uses: actions/upload-artifact@v3
+        with:
+          name: ${{ matrix.releasetag == 'wheels' && 'AVX2' || matrix.releasetag }}
+          path: ./dist/*.whl
+          
+  define_matrix_macos:
+    name: Define Build Matrix
+    needs: build_wheels_main
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
+    defaults:
+      run:
+        shell: pwsh
+    env:
+      CONFIGIN: 'Default'
+      EXCLUDEIN: 'os:macos-13;pyver:3.11;os:macos-12,pyver:3.8'
+        
+    steps:
+      - name: Define Job Output
+        id: set-matrix
+        run: |
+          $matrix = @{
+              'os' = "macos-13", "macos-12", "macos-11"
+              'pyver' = "3.10", "3.8", "3.9", "3.11"
+          }
+          
+          if ($env:CONFIGIN -ne 'Default') {$env:CONFIGIN.split(';').foreach({$matrix[$_.split(':')[0]] = $_.split(':')[1].split(',')})}
+          
+          if ($env:EXCLUDEIN -ne 'None') {
+              $exclusions = @()
+              $exclusions += $env:EXCLUDEIN.split(';').replace(':','=').replace(',',"`n") | ConvertFrom-StringData
+              $matrix['exclude'] = $exclusions
+          }
+          
+          $matrixOut = ConvertTo-Json $matrix -Compress
+          Write-Output ('matrix=' + $matrixOut) >> $env:GITHUB_OUTPUT
+          
+  build_wheels_macos:
+    name: ${{ matrix.os }} Python ${{ matrix.pyver }}
+    needs: define_matrix_macos
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix: ${{ fromJSON(needs.define_matrix_macos.outputs.matrix) }}
     env:
       OSVER: ${{ matrix.os }}
 
@@ -18,7 +199,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           repository: 'abetlen/llama-cpp-python'
-          ref: ${{ matrix.pckgver }}
+          ref: ${{ inputs.version }}
           submodules: 'recursive'
           
       - uses: actions/setup-python@v4
@@ -34,17 +215,27 @@ jobs:
           XCODE15PATH="/Applications/Xcode_15.0.app/Contents/Developer"
           XCODE15BINPATH="${XCODE15PATH}/Toolchains/XcodeDefault.xctoolchain/usr/bin"
           export CMAKE_ARGS="-DLLAMA_METAL=on"
-          export CC="${XCODE15BINPATH}/cc" && export CXX="${XCODE15BINPATH}/c++"
+          [[ "$OSVER" == "macos-13" ]] && export CC="${XCODE15BINPATH}/cc" && export CXX="${XCODE15BINPATH}/c++" && export MACOSX_DEPLOYMENT_TARGET="13.0"
+          [[ "$OSVER" == "macos-12" ]] && export MACOSX_DEPLOYMENT_TARGET="12.0"
+          [[ "$OSVER" == "macos-11" ]] && export MACOSX_DEPLOYMENT_TARGET="11.0"
           
           export CMAKE_OSX_ARCHITECTURES="arm64" && export ARCHFLAGS="-arch arm64"
-          export SDKROOT="${XCODE15PATH}/Platforms/MacOSX.platform/Developer/SDKs/MacOSX14.0.sdk"
-          export MACOSX_DEPLOYMENT_TARGET="14.0"
           VERBOSE=1 python -m build --wheel
           
+          if [[ "$OSVER" == "macos-13" ]]; then
+            export SDKROOT="${XCODE15PATH}/Platforms/MacOSX.platform/Developer/SDKs/MacOSX14.0.sdk"
+            export MACOSX_DEPLOYMENT_TARGET="14.0"
+            VERBOSE=1 python -m build --wheel
+          fi
+          
           export CMAKE_OSX_ARCHITECTURES="x86_64" && export CMAKE_ARGS="-DLLAMA_AVX=off -DLLAMA_AVX2=off -DLLAMA_FMA=off -DLLAMA_F16C=off -DLLAMA_METAL=on" && export ARCHFLAGS="-arch x86_64"
-          export SDKROOT="${XCODE15PATH}/Platforms/MacOSX.platform/Developer/SDKs/MacOSX14.0.sdk"
-          export MACOSX_DEPLOYMENT_TARGET="14.0"
           VERBOSE=1 python -m build --wheel
+          
+          if [[ "$OSVER" == "macos-13" ]]; then
+            export SDKROOT="${XCODE15PATH}/Platforms/MacOSX.platform/Developer/SDKs/MacOSX14.0.sdk"
+            export MACOSX_DEPLOYMENT_TARGET="14.0"
+            VERBOSE=1 python -m build --wheel
+          fi
         
       - uses: actions/upload-artifact@v3
         with:
