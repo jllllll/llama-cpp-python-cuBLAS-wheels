@@ -4,40 +4,88 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'Version tag of llama-cpp-python to build: v0.2.2'
-        default: 'v0.2.2'
+        description: 'Version tag of llama-cpp-python to build: v0.2.9'
+        default: 'v0.2.9'
         required: true
+        type: string
+      config:
+        description: 'Override configurations to build: key1:item1-1,item1-2;key2:item2-1,item2-2'
+        default: 'Default'
+        required: false
+        type: string
+      exclude:
+        description: 'Exclude build configurations: key1-1:item1-1,key1-2:item1-2;key2-1:item2-1,key2-2:item2-2'
+        default: 'Default'
+        required: false
         type: string
   workflow_call:
     inputs:
       version:
-        description: 'Version tag of llama-cpp-python to build: v0.2.2'
-        default: 'v0.2.2'
+        description: 'Version tag of llama-cpp-python to build: v0.2.9'
+        default: 'v0.2.9'
         required: true
+        type: string
+      config:
+        description: 'Configurations to build: key1:item1-1,item1-2;key2:item2-1,item2-2'
+        default: 'Default'
+        required: false
+        type: string
+      exclude:
+        description: 'Exclude build configurations: key1-1:item1-1,key1-2:item1-2;key2-1:item2-1,key2-2:item2-2'
+        default: 'Default'
+        required: false
         type: string
 
 permissions:
   contents: write
 
 jobs:
+  define_matrix:
+    name: Define Build Matrix
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
+    defaults:
+      run:
+        shell: pwsh
+    env:
+      CONFIGIN: ${{ inputs.config }}
+      EXCLUDEIN: ${{ inputs.exclude }}
+        
+    steps:
+      - name: Define Job Output
+        id: set-matrix
+        run: |
+          $matrix = @{
+              'os' = 'ubuntu-20.04', 'windows-latest'
+              'pyver' = "3.10", "3.8", "3.9", "3.11"
+              'rocm' = '5.4.2', '5.5', '5.5.1', '5.6.1'
+              'rename' = '0', '1'
+              'exclude' = @(
+                  @{'os' = 'windows-latest';'rocm' = '5.4.2'},
+                  @{'os' = 'windows-latest';'rocm' = '5.5'},
+                  @{'os' = 'windows-latest';'rocm' = '5.6.1'},
+                  @{'os' = 'ubuntu-20.04';'rocm' = '5.5.1'}
+              )
+          }
+          
+          if ($env:CONFIGIN -ne 'Default') {$env:CONFIGIN.split(';').foreach({$matrix[$_.split(':')[0]] = $_.split(':')[1].split(',')})}
+          
+          if ($env:EXCLUDEIN -notin ('None','Default')) {
+              $exclusions = $matrix['exclude']
+              $exclusions += $env:EXCLUDEIN.split(';').replace(':','=').replace(',',"`n") | ConvertFrom-StringData
+              $matrix['exclude'] = $exclusions
+          } elseif ($env:EXCLUDEIN -eq 'None') {$matrix.remove('exclude')}
+          
+          $matrixOut = ConvertTo-Json $matrix -Compress
+          Write-Output ('matrix=' + $matrixOut) >> $env:GITHUB_OUTPUT
+          
   build_wheels:
     name: Build ${{ matrix.os }} ROCm ${{ matrix.rocm }} ${{ matrix.rename == '1' && 'Textgen Wheel' || 'Wheel' }} ${{ matrix.pyver }}
+    needs: define_matrix
     runs-on: ${{ matrix.os }}
     strategy:
-      matrix:
-        os: [ubuntu-20.04, windows-latest]
-        pyver: ["3.8", "3.9", "3.10", "3.11"]
-        rocm: ['5.4.2','5.5','5.5.1','5.6.1']
-        rename: ['0', '1']
-        exclude:
-            - os: windows-latest
-              rocm: '5.4.2'
-            - os: windows-latest
-              rocm: '5.5'
-            - os: windows-latest
-              rocm: '5.6.1'
-            - os: ubuntu-20.04
-              rocm: '5.5.1'
+      matrix: ${{ fromJSON(needs.define_matrix.outputs.matrix) }}
     defaults:
       run:
         shell: pwsh

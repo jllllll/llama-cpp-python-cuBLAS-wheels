@@ -4,8 +4,8 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'Version tag of llama-cpp-python to build: v0.2.2'
-        default: 'v0.2.2'
+        description: 'Version tag of llama-cpp-python to build: v0.2.9'
+        default: 'v0.2.9'
         required: true
         type: string
 
@@ -18,6 +18,7 @@ jobs:
     uses: ./.github/workflows/build-wheels.yml
     with:
       version: ${{ inputs.version }}
+      cpu: '0'
       
   run_ooba:
     name: Build ${{ inputs.version }} CUDA Wheels for Text Generation Webui
@@ -26,9 +27,16 @@ jobs:
     with:
       version: ${{ inputs.version }}
       
+  run_cpu:
+    name: Build CPU-only Wheels
+    needs: run_ooba
+    uses: ./.github/workflows/build-wheels-cpu.yml
+    with:
+      version: ${{ inputs.version }}
+      
   run_rocm:
     name: Build ROCm Wheels
-    needs: run_ooba
+    needs: run_cpu
     uses: ./.github/workflows/build-wheels-rocm-full.yml
     with:
       version: ${{ inputs.version }}

@@ -4,15 +4,15 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'Version tag of llama-cpp-python to build: v0.2.2'
-        default: 'v0.2.2'
+        description: 'Version tag of llama-cpp-python to build: v0.2.9'
+        default: 'v0.2.9'
         required: true
         type: string
   workflow_call:
     inputs:
       version:
-        description: 'Version tag of llama-cpp-python to build: v0.2.2'
-        default: 'v0.2.2'
+        description: 'Version tag of llama-cpp-python to build: v0.2.9'
+        default: 'v0.2.9'
         required: true
         type: string
 
@@ -20,128 +20,9 @@ permissions:
   contents: write
 
 jobs:
-  build_wheels:
-    name: Build ${{ matrix.os }} ROCm ${{ matrix.rocm }} Wheel ${{ matrix.pyver }}
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        os: [ubuntu-20.04, windows-latest]
-        pyver: ["3.8", "3.9", "3.10", "3.11"]
-        rocm: ['5.4.2','5.5','5.5.1','5.6.1']
-        exclude:
-            - os: windows-latest
-              rocm: '5.4.2'
-            - os: windows-latest
-              rocm: '5.5'
-            - os: windows-latest
-              rocm: '5.6.1'
-            - os: ubuntu-20.04
-              rocm: '5.5.1'
-    defaults:
-      run:
-        shell: pwsh
-    env:
-      PCKGVER: ${{ inputs.version }}
-      ROCM_VERSION: ${{ matrix.rocm }}
-
-    steps:
-      - name: Free Disk Space
-        if: runner.os == 'Linux'
-        uses: jlumbroso/free-disk-space@v1.2.0
-        with:
-          tool-cache: false
-          android: true
-          dotnet: true
-          haskell: true
-          large-packages: false
-          swap-storage: false
-          
-      - uses: actions/checkout@v4
-        with:
-          repository: 'abetlen/llama-cpp-python'
-          ref: ${{ inputs.version }}
-          submodules: 'recursive'
-          
-      - name: Install Linux ROCm SDK
-        if: runner.os == 'Linux'
-        shell: bash
-        run: |
-          [ ! -d /etc/apt/keyrings ] && sudo mkdir --parents --mode=0755 /etc/apt/keyrings
-          wget https://repo.radeon.com/rocm/rocm.gpg.key -O - | gpg --dearmor | sudo tee /etc/apt/keyrings/rocm.gpg > /dev/null
-          echo "deb [arch=amd64 signed-by=/etc/apt/keyrings/rocm.gpg] https://repo.radeon.com/rocm/apt/$ROCM_VERSION focal main" | sudo tee --append /etc/apt/sources.list.d/rocm.list
-          echo -e 'Package: *\nPin: release o=repo.radeon.com\nPin-Priority: 600' | sudo tee /etc/apt/preferences.d/rocm-pin-600
-          sudo apt update
-          sudo apt install rocm-dev rocblas-dev hipblas-dev -y
-          
-      - name: Install Windows ROCm SDK
-        if: runner.os == 'Windows'
-        run: |
-          curl -LO https://download.amd.com/developer/eula/rocm-hub/AMD-Software-PRO-Edition-23.Q3-Win10-Win11-For-HIP.exe
-          Start-Process 'AMD-Software-PRO-Edition-23.Q3-Win10-Win11-For-HIP.exe' -ArgumentList '-install' -NoNewWindow -Wait
-          echo "C:\Program Files\AMD\ROCm\5.5\bin" >> $env:GITHUB_PATH
-          echo 'ROCM_PATH=C:\Program Files\AMD\ROCm\5.5' >> $env:GITHUB_ENV
-          echo 'HIP_PATH=C:\Program Files\AMD\ROCm\5.5' >> $env:GITHUB_ENV
-          
-      - uses: actions/setup-python@v4
-        with:
-          python-version: ${{ matrix.pyver }}
-          
-      - name: Install Dependencies
-        run: |
-          python -m pip install build wheel cmake scikit-build ninja
-        
-      - name: Build Wheel
-        run: |
-          if ($IsLinux) {
-            $env:CC = '/opt/rocm/llvm/bin/clang'
-            $env:CXX = '/opt/rocm/llvm/bin/clang++'
-            $env:CFLAGS = '-fPIC'
-            $env:CXXFLAGS = '-fPIC'
-            $env:CMAKE_PREFIX_PATH = '/opt/rocm'
-            $env:GITHUB_PATH = "/opt/rocm/bin:$env:GITHUB_PATH"
-            $env:ROCM_PATH = "/opt/rocm"
-            $env:HIP_PATH = "/opt/rocm"
-          } else {
-            $env:CC = 'C:\Program Files\AMD\ROCm\5.5\bin\clang.exe'
-            $env:CXX = 'C:\Program Files\AMD\ROCm\5.5\bin\clang++.exe'
-            $env:CMAKE_PREFIX_PATH = 'C:\Program Files\AMD\ROCm\5.5'
-            $cmakelists = Get-Content 'CMakeLists.txt' -raw
-            $regexstr = '(?s)(?<=\n)\s+?install\(\s+FILES \$\<TARGET_RUNTIME_DLLS.+/llama_cpp(?:_cuda)?\s+\)\s+?(?=endif\(\))'
-            $regexmatch = [Regex]::Matches($cmakelists,$regexstr)
-            if ($regexmatch[0].Success) {New-Item 'CMakeLists.txt' -itemType File -value $regexmatch[0].Result('$`$''') -force}
-          }
-          $env:VERBOSE = '1'
-          $packageVersion = [version]$env:PCKGVER.TrimStart('v')
-          $gputargets = 'gfx803;gfx900;gfx906:xnack-;gfx908:xnack-;gfx90a:xnack+;gfx90a:xnack-;gfx1010;gfx1012;gfx1030;gfx1100;gfx1101;gfx1102'
-          if ([version]$env:ROCM_VERSION -lt [version]'5.5') {$gputargets = 'gfx803;gfx900;gfx906:xnack-;gfx908:xnack-;gfx90a:xnack+;gfx90a:xnack-;gfx1010;gfx1012;gfx1030'}
-          $env:CMAKE_ARGS = "-GNinja -DLLAMA_HIPBLAS=ON -DGPU_TARGETS=$gputargets"
-          $buildtag = "+rocm$env:ROCM_VERSION"
-          if ($packageVersion -lt [version]'0.2.0') {
-            python -m build --wheel -C--build-option=egg_info "-C--build-option=--tag-build=$buildtag"
-          } else {
-            $initpath = Join-Path '.' 'llama_cpp' '__init__.py' -resolve
-            $initcontent = Get-Content $initpath -raw
-            $regexstr = '(?s)(?<=__version__ \= ")\d+(?:\.\d+)*(?=")'
-            $regexmatch = [Regex]::Matches($initcontent,$regexstr)
-            if (!($regexmatch[0].Success)) {throw '__init__.py parsing failed'}
-            $newinit = $regexmatch[0].Result(('$`' + '$&' + $buildtag + '$'''))
-            New-Item $initpath -itemType File -value $newinit -force
-            python -m build --wheel
-          }
-          
-      - name: Upload files to a GitHub release
-        id: upload-release
-        uses: svenstaro/upload-release-action@2.7.0
-        continue-on-error: true
-        with:
-          file: ./dist/*.whl
-          tag: rocm
-          file_glob: true
-          make_latest: false
-          overwrite: true
-        
-      - uses: actions/upload-artifact@v3
-        if: steps.upload-release.outcome == 'failure'
-        with:
-          name: 'rocm-wheels'
-          path: ./dist/*.whl
+  build_wheels_rocm:
+    name: ROCm Wheels
+    uses: ./.github/workflows/build-wheels-rocm-full.yml
+    with:
+      version: ${{ inputs.version }}
+      config: 'rename:0'

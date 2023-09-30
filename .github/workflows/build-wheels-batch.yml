@@ -8,6 +8,11 @@ on:
         default: 'v0.1.77,v0.1.76'
         required: true
         type: string
+      cpu:
+        description: 'Build CPU-only wheels as well? 0/1'
+        default: '1'
+        required: false
+        type: string
 
 permissions:
   contents: write
@@ -43,3 +48,4 @@ jobs:
     uses: ./.github/workflows/build-wheels.yml
     with:
       version: ${{ matrix.version }}
+      cpu: ${{ inputs.cpu }}

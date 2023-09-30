@@ -4,31 +4,92 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'Version tag of llama-cpp-python to build: v0.2.2'
-        default: 'v0.2.2'
+        description: 'Version tag of llama-cpp-python to build: v0.2.9'
+        default: 'v0.2.9'
         required: true
+        type: string
+      cpu:
+        description: 'Build CPU-only wheels as well? 0/1 Does not use config or exclude.'
+        default: '1'
+        required: false
+        type: string
+      config:
+        description: 'Override configurations to build: key1:item1-1,item1-2;key2:item2-1,item2-2'
+        default: 'Default'
+        required: false
+        type: string
+      exclude:
+        description: 'Exclude build configurations: key1-1:item1-1,key1-2:item1-2;key2-1:item2-1,key2-2:item2-2'
+        default: 'None'
+        required: false
         type: string
   workflow_call:
     inputs:
       version:
-        description: 'Version tag of llama-cpp-python to build: v0.2.2'
-        default: 'v0.2.2'
+        description: 'Version tag of llama-cpp-python to build: v0.2.9'
+        default: 'v0.2.9'
         required: true
+        type: string
+      cpu:
+        description: 'Build CPU-only wheels as well? 0/1 Does not use config or exclude.'
+        default: '1'
+        required: false
+        type: string
+      config:
+        description: 'Configurations to build: key1:item1-1,item1-2;key2:item2-1,item2-2'
+        default: 'Default'
+        required: false
+        type: string
+      exclude:
+        description: 'Exclude build configurations: key1-1:item1-1,key1-2:item1-2;key2-1:item2-1,key2-2:item2-2'
+        default: 'None'
+        required: false
         type: string
 
 permissions:
   contents: write
 
 jobs:
+  define_matrix:
+    name: Define Build Matrix
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
+    defaults:
+      run:
+        shell: pwsh
+    env:
+      CONFIGIN: ${{ inputs.config }}
+      EXCLUDEIN: ${{ inputs.exclude }}
+        
+    steps:
+      - name: Define Job Output
+        id: set-matrix
+        run: |
+          $matrix = @{
+              'os' = 'ubuntu-20.04', 'windows-latest'
+              'pyver' = "3.10", "3.8", "3.9", "3.11"
+              'cuda' = "11.6.2", "11.7.1", "11.8.0", "12.0.1", "12.1.1", "12.2.0"
+              'releasetag' = "AVX", "wheels", "AVX512", "basic"
+          }
+          
+          if ($env:CONFIGIN -ne 'Default') {$env:CONFIGIN.split(';').foreach({$matrix[$_.split(':')[0]] = $_.split(':')[1].split(',')})}
+          
+          if ($env:EXCLUDEIN -ne 'None') {
+              $exclusions = @()
+              $exclusions += $env:EXCLUDEIN.split(';').replace(':','=').replace(',',"`n") | ConvertFrom-StringData
+              $matrix['exclude'] = $exclusions
+          }
+          
+          $matrixOut = ConvertTo-Json $matrix -Compress
+          Write-Output ('matrix=' + $matrixOut) >> $env:GITHUB_OUTPUT
+          
   build_wheels:
     name: Build Wheel ${{ matrix.os }} ${{ matrix.pyver }} ${{ matrix.cuda }} ${{ matrix.releasetag == 'wheels' && 'AVX2' || matrix.releasetag }}
+    needs: define_matrix
     runs-on: ${{ matrix.os }}
     strategy:
-      matrix:
-        os: [ubuntu-20.04, windows-latest]
-        pyver: ["3.8", "3.9", "3.10", "3.11"]
-        cuda: ["11.6.2", "11.7.1", "11.8.0", "12.0.1", "12.1.1", "12.2.0"]
-        releasetag: ["AVX","wheels","AVX512","basic"]
+      matrix: ${{ fromJSON(needs.define_matrix.outputs.matrix) }}
     defaults:
       run:
         shell: pwsh
@@ -147,6 +208,7 @@ jobs:
   build_cpu:
     name: Build CPU-only Wheels
     needs: build_wheels
+    if: inputs.cpu == '1'
     uses: ./.github/workflows/build-wheels-cpu.yml
     with:
       version: ${{ inputs.version }}
