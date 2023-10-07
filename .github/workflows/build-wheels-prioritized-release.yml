@@ -4,8 +4,8 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'Version tag of llama-cpp-python to build: v0.2.9'
-        default: 'v0.2.9'
+        description: 'Version tag of llama-cpp-python to build: v0.2.11'
+        default: 'v0.2.11'
         required: true
         type: string
 
@@ -40,7 +40,7 @@ jobs:
     uses: ./.github/workflows/build-wheels-rocm-full.yml
     with:
       version: ${{ inputs.version }}
-      config: 'os:ubuntu-20.04;pyver:3.10;rocm:5.4.2;rename:1'
+      config: 'os:ubuntu-20.04;pyver:3.10;rocm:5.6.1;rename:1'
       exclude: 'None'
       
   build_wheels_macos_prio:
@@ -75,18 +75,18 @@ jobs:
       version: ${{ inputs.version }}
       exclude: 'pyver:3.10,avx:basic'
       
-  build_wheels_rocm:
-    name: ROCm Wheels
-    needs: build_wheels_cpu
-    uses: ./.github/workflows/build-wheels-rocm-full.yml
-    with:
-      version: ${{ inputs.version }}
-      exclude: 'os:ubuntu-20.04,pyver:3.10,rocm:5.4.2,rename:1'
-      
   build_wheels_macos:
     name: MacOS Metal Wheels
-    needs: build_wheels_rocm
+    needs: build_wheels_cpu
     uses: ./.github/workflows/build-wheels-macos.yml
     with:
       version: ${{ inputs.version }}
       exclude: 'pyver:3.10'
+      
+  build_wheels_rocm:
+    name: ROCm Wheels
+    needs: build_wheels_macos
+    uses: ./.github/workflows/build-wheels-rocm-full.yml
+    with:
+      version: ${{ inputs.version }}
+      exclude: 'os:ubuntu-20.04,pyver:3.10,rocm:5.6.1,rename:1'

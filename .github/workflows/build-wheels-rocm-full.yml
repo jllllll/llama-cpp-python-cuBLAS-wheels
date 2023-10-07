@@ -4,8 +4,8 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'Version tag of llama-cpp-python to build: v0.2.9'
-        default: 'v0.2.9'
+        description: 'Version tag of llama-cpp-python to build: v0.2.11'
+        default: 'v0.2.11'
         required: true
         type: string
       config:
@@ -21,8 +21,8 @@ on:
   workflow_call:
     inputs:
       version:
-        description: 'Version tag of llama-cpp-python to build: v0.2.9'
-        default: 'v0.2.9'
+        description: 'Version tag of llama-cpp-python to build: v0.2.11'
+        default: 'v0.2.11'
         required: true
         type: string
       config:
@@ -60,6 +60,7 @@ jobs:
               'os' = 'ubuntu-20.04', 'windows-latest'
               'pyver' = "3.10", "3.8", "3.9", "3.11"
               'rocm' = '5.4.2', '5.5', '5.5.1', '5.6.1'
+              'avx' = "AVX", "AVX2", "basic"
               'rename' = '0', '1'
               'exclude' = @(
                   @{'os' = 'windows-latest';'rocm' = '5.4.2'},
@@ -81,7 +82,7 @@ jobs:
           Write-Output ('matrix=' + $matrixOut) >> $env:GITHUB_OUTPUT
           
   build_wheels:
-    name: Build ${{ matrix.os }} ROCm ${{ matrix.rocm }} ${{ matrix.rename == '1' && 'Textgen Wheel' || 'Wheel' }} ${{ matrix.pyver }}
+    name: Build ${{ matrix.os }} ${{ matrix.avx }} ROCm ${{ matrix.rocm }} ${{ matrix.rename == '1' && 'Textgen Wheel' || 'Wheel' }} ${{ matrix.pyver }}
     needs: define_matrix
     runs-on: ${{ matrix.os }}
     strategy:
@@ -92,6 +93,7 @@ jobs:
     env:
       PCKGVER: ${{ inputs.version }}
       ROCM_VERSION: ${{ matrix.rocm }}
+      AVXVER: ${{ matrix.avx }}
 
     steps:
       - name: Free Disk Space
@@ -190,10 +192,19 @@ jobs:
           }
           $env:VERBOSE = '1'
           $packageVersion = [version]$env:PCKGVER.TrimStart('v')
+          
           $gputargets = 'gfx803;gfx900;gfx906:xnack-;gfx908:xnack-;gfx90a:xnack+;gfx90a:xnack-;gfx1010;gfx1012;gfx1030;gfx1100;gfx1101;gfx1102'
           if ([version]$env:ROCM_VERSION -lt [version]'5.5') {$gputargets = 'gfx803;gfx900;gfx906:xnack-;gfx908:xnack-;gfx90a:xnack+;gfx90a:xnack-;gfx1010;gfx1012;gfx1030'}
-          $env:CMAKE_ARGS = "-GNinja -DLLAMA_HIPBLAS=ON -DGPU_TARGETS=$gputargets"
-          $buildtag = "+rocm$env:ROCM_VERSION"
+          
+          if ($env:AVXVER -eq 'AVX') {$env:CMAKE_ARGS = "-GNinja -DLLAMA_HIPBLAS=ON -DLLAMA_AVX2=off -DLLAMA_FMA=off -DLLAMA_F16C=off -DGPU_TARGETS=$gputargets"}
+          if ($env:AVXVER -eq 'AVX512') {$env:CMAKE_ARGS = "-GNinja -DLLAMA_HIPBLAS=ON -DLLAMA_AVX512=on -DGPU_TARGETS=$gputargets"}
+          if ($env:AVXVER -eq 'basic') {$env:CMAKE_ARGS = "-GNinja -DLLAMA_HIPBLAS=ON -DLLAMA_AVX=off -DLLAMA_AVX2=off -DLLAMA_FMA=off -DLLAMA_F16C=off -DGPU_TARGETS=$gputargets"}
+          if ($env:AVXVER -eq 'AVX2')
+          {
+              $env:CMAKE_ARGS = "-GNinja -DLLAMA_HIPBLAS=ON -DGPU_TARGETS=$gputargets"
+              $buildtag = "+rocm$env:ROCM_VERSION"
+          } else {$buildtag = "+rocm$env:ROCM_VERSION$env:AVXVER"}
+          
           if ($packageVersion -lt [version]'0.2.0') {
             python -m build --wheel -C--build-option=egg_info "-C--build-option=--tag-build=$buildtag"
           } else {

@@ -5,8 +5,18 @@ on:
     inputs:
       versions:
         description: 'Comma-seperated version tags of llama-cpp-python to build'
-        default: 'v0.1.83,v0.1.82,v0.1.81,v0.1.80'
+        default: 'v0.2.11,v0.2.10,v0.2.9,v0.2.8'
         required: true
+        type: string
+      config:
+        description: 'Override configurations to build: key1:item1-1,item1-2;key2:item2-1,item2-2'
+        default: 'Default'
+        required: false
+        type: string
+      exclude:
+        description: 'Exclude build configurations: key1-1:item1-1,key1-2:item1-2;key2-1:item2-1,key2-2:item2-2'
+        default: 'Default'
+        required: false
         type: string
 
 permissions:
@@ -45,3 +55,5 @@ jobs:
     uses: ./.github/workflows/build-wheels-rocm-full.yml
     with:
       version: ${{ matrix.version }}
+      config: ${{ inputs.config }}
+      exclude: ${{ inputs.exclude }}

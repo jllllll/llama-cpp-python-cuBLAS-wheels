@@ -4,8 +4,8 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'Version tag of llama-cpp-python to build: v0.2.9'
-        default: 'v0.2.9'
+        description: 'Version tag of llama-cpp-python to build: v0.2.11'
+        default: 'v0.2.11'
         required: true
         type: string
 
@@ -34,16 +34,16 @@ jobs:
     with:
       version: ${{ inputs.version }}
       
-  run_rocm:
-    name: Build ROCm Wheels
+  run_macos:
+    name: Build MacOS Metal Wheels
     needs: run_cpu
-    uses: ./.github/workflows/build-wheels-rocm-full.yml
+    uses: ./.github/workflows/build-wheels-macos.yml
     with:
       version: ${{ inputs.version }}
       
-  run_macos:
-    name: Build MacOS Metal Wheels
-    needs: run_rocm
-    uses: ./.github/workflows/build-wheels-macos.yml
+  run_rocm:
+    name: Build ROCm Wheels
+    needs: run_macos
+    uses: ./.github/workflows/build-wheels-rocm-full.yml
     with:
       version: ${{ inputs.version }}
