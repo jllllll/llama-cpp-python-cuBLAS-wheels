@@ -23,7 +23,6 @@ Foreach ($avxVersion in $avxVersions)
 	$subIndexContent = "<!DOCTYPE html>`n<html>`n  <body>`n    "
 	ForEach ($cudaVersion in $cudaVersions)
 	{
-		if ($cudaVersion.StartsWith('rocm') -and $avxVersion -ne 'AVX2') {continue}
 		if ($cudaVersion.StartsWith('rocm')) {$wheelURL = $wheelSource.TrimEnd('/') + '/rocm'}
 		$cu = if ($cudaVersion.StartsWith('rocm')) {$cudaVersion} else {'cu' + $cudaVersion.replace('.','')}
 		$cuContent = "<!DOCTYPE html>`n<html>`n  <body>`n    "
@@ -32,6 +31,7 @@ Foreach ($avxVersion in $avxVersions)
 		{
 			if ($avxVersion -eq 'basic' -and $packageVersion -eq '0.1.73') {continue}
 			if ($cudaVersion.StartsWith('rocm') -and [version]$packageVersion -lt [version]"0.1.80") {continue}
+			if ($cudaVersion.StartsWith('rocm') -and $avxVersion -ne 'AVX2' -and [version]$packageVersion -lt [version]"0.2.7") {continue}
 			ForEach ($pythonVersion in $pythonVersions)
 			{
 				$pyVer = $pythonVersion.replace('.','')

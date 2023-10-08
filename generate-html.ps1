@@ -23,7 +23,7 @@ Foreach ($avxVersion in $avxVersions)
 	$subIndexContent = "<!DOCTYPE html>`n<html>`n  <body>`n    "
 	ForEach ($cudaVersion in $cudaVersions)
 	{
-		if ($cudaVersion.StartsWith('rocm') -and $avxVersion -ne 'AVX2') {continue}
+		if ($cudaVersion.StartsWith('rocm') -and $avxVersion -eq 'AVX512') {continue}
 		$cu = if ($cudaVersion -in 'cpu' -or $cudaVersion.StartsWith('rocm')) {$cudaVersion} else {'cu' + $cudaVersion.replace('.','')}
 		if ($cudaVersion -eq 'cpu') {$wheelURL = $wheelSource.TrimEnd('/') + '/cpu'}
 		if ($cudaVersion.StartsWith('rocm')) {$wheelURL = $wheelSource.TrimEnd('/') + '/rocm'}
@@ -33,6 +33,7 @@ Foreach ($avxVersion in $avxVersions)
 		{
 			if (($avxVersion -eq 'basic' -or $cudaVersion -eq 'cpu') -and [version]$packageVersion -lt [version]"0.1.70") {continue}
 			if ($cudaVersion.StartsWith('rocm') -and [version]$packageVersion -lt [version]"0.1.80") {continue}
+			if ($cudaVersion.StartsWith('rocm') -and $avxVersion -ne 'AVX2' -and [version]$packageVersion -lt [version]"0.2.7") {continue}
 			ForEach ($pythonVersion in $pythonVersions)
 			{
 				if ($cudaVersion.StartsWith('rocm') -or [version]$packageVersion -gt [version]"0.1.85" -and $pythonVersion -eq "3.7") {continue}
@@ -43,7 +44,7 @@ Foreach ($avxVersion in $avxVersions)
 					if ($cudaVersion.StartsWith('rocm') -and $cudaVersion.Split('rocm')[-1] -ne '5.5.1' -and $supportedSystem -eq 'win_amd64') {continue}
 					if ($cudaVersion.StartsWith('rocm') -and $cudaVersion.Split('rocm')[-1] -eq '5.5.1' -and $supportedSystem -eq 'linux_x86_64') {continue}
 					if ([version]$packageVersion -gt [version]"0.1.85" -and $supportedSystem -eq 'linux_x86_64') {$supportedSystem = 'manylinux_2_31_x86_64'}
-					$wheelTag = if ($cudaVersion -eq 'cpu' -and !$supportedSystem.contains('macosx')) {"+cpu$($avxVersion.ToLower())"} elseif (!$supportedSystem.contains('macosx')) {"+$cu"} else {''}
+					$wheelTag = if ($cudaVersion -eq 'cpu' -and !$supportedSystem.contains('macosx')) {"+cpu$($avxVersion.ToLower())"} elseif ($cudaVersion.StartsWith('rocm') -and $avxVersion -ne 'AVX2') {"+$cu$($avxVersion.ToLower())"} elseif (!$supportedSystem.contains('macosx')) {"+$cu"} else {''}
 					$wheel = if ($pyVer -eq '37') {"$packageName-$packageVersion$wheelTag-cp$pyVer-cp$pyVer`m-$supportedSystem.whl"} else {"$packageName-$packageVersion$wheelTag-cp$pyVer-cp$pyVer-$supportedSystem.whl"}
 					$wheelAlt = if ($pyVer -eq '37') {"$packageNameAlt-$packageVersion$wheelTag-cp$pyVer-cp$pyVer`m-$supportedSystem.whl"} else {"$packageNameAlt-$packageVersion$wheelTag-cp$pyVer-cp$pyVer-$supportedSystem.whl"}
 					if (!$supportedSystem.contains('macosx')) {$cuContent += "<a href=`"$wheelURL/$wheel`">$wheel</a><br/>`n    "} elseif ($doMacos) {$cuContent += "<a href=`"$wheelMacosURL/$wheel`">$wheel</a><br/>`n    "}
