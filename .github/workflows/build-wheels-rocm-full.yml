@@ -98,7 +98,7 @@ jobs:
     steps:
       - name: Free Disk Space
         if: runner.os == 'Linux'
-        uses: jlumbroso/free-disk-space@v1.2.0
+        uses: jlumbroso/free-disk-space@v1.3.1
         with:
           tool-cache: false
           android: true
