@@ -102,6 +102,7 @@ jobs:
           if ($packageVersion -gt [version]'0.1.68' -and $packageVersion -lt [version]'0.1.71') {$env:CMAKE_ARGS = '-DLLAMA_CUBLAS=on -DCMAKE_CUDA_ARCHITECTURES=35-real;37-real;52;61-real;70-real;72-real;75-real;80-real;86-real;89-real;90'}
           if ($packageVersion -gt [version]'0.1.68' -and $packageVersion -lt [version]'0.1.71' -and [version]$env:CUDAVER -ge [version]'12.0') {$env:CMAKE_ARGS = '-DLLAMA_CUBLAS=on -DCMAKE_CUDA_ARCHITECTURES=52;61-real;70-real;72-real;75-real;80-real;86-real;89-real;90'}
           if ($packageVersion -gt [version]'0.1.68' -and $packageVersion -lt [version]'0.1.71' -and [version]$env:CUDAVER -lt [version]'11.8') {$env:CMAKE_ARGS = '-DLLAMA_CUBLAS=on -DCMAKE_CUDA_ARCHITECTURES=35-real;37-real;52;61-real;70-real;72-real;75-real;80-real;86'}
+          if ($packageVersion -gt [version]'0.2.13') {$env:CMAKE_ARGS = "-DLLAMA_NATIVE=off $env:CMAKE_ARGS"}
           if ($packageVersion -lt [version]'0.1.66') {$env:CUDAFLAGS = '-arch=all'}
           if ($env:AVXVER -eq 'AVX') {$env:CMAKE_ARGS = $env:CMAKE_ARGS + ' -DLLAMA_AVX2=off -DLLAMA_FMA=off -DLLAMA_F16C=off'}
           if ($env:AVXVER -eq 'AVX512') {$env:CMAKE_ARGS = $env:CMAKE_ARGS + ' -DLLAMA_AVX512=on'}

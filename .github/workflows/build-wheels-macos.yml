@@ -100,7 +100,7 @@ jobs:
         run: |
           XCODE15PATH="/Applications/Xcode_15.0.app/Contents/Developer"
           XCODE15BINPATH="${XCODE15PATH}/Toolchains/XcodeDefault.xctoolchain/usr/bin"
-          export CMAKE_ARGS="-DLLAMA_METAL=on"
+          export CMAKE_ARGS="-DLLAMA_NATIVE=off -DLLAMA_METAL=on"
           [[ "$OSVER" == "macos-13" ]] && export CC="${XCODE15BINPATH}/cc" && export CXX="${XCODE15BINPATH}/c++" && export MACOSX_DEPLOYMENT_TARGET="13.0"
           [[ "$OSVER" == "macos-12" ]] && export MACOSX_DEPLOYMENT_TARGET="12.0"
           [[ "$OSVER" == "macos-11" ]] && export MACOSX_DEPLOYMENT_TARGET="11.0"
@@ -114,7 +114,7 @@ jobs:
             VERBOSE=1 python -m build --wheel
           fi
           
-          export CMAKE_OSX_ARCHITECTURES="x86_64" && export CMAKE_ARGS="-DLLAMA_AVX=off -DLLAMA_AVX2=off -DLLAMA_FMA=off -DLLAMA_F16C=off -DLLAMA_METAL=on" && export ARCHFLAGS="-arch x86_64"
+          export CMAKE_OSX_ARCHITECTURES="x86_64" && export CMAKE_ARGS="-DLLAMA_NATIVE=off -DLLAMA_AVX=off -DLLAMA_AVX2=off -DLLAMA_FMA=off -DLLAMA_F16C=off -DLLAMA_METAL=on" && export ARCHFLAGS="-arch x86_64"
           VERBOSE=1 python -m build --wheel
           
           if [[ "$OSVER" == "macos-13" ]]; then

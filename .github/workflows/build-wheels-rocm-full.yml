@@ -205,6 +205,7 @@ jobs:
               $buildtag = "+rocm$env:ROCM_VERSION"
           } else {$buildtag = "+rocm$env:ROCM_VERSION$env:AVXVER"}
           
+          if ($packageVersion -gt [version]'0.2.13') {$env:CMAKE_ARGS = "-DLLAMA_NATIVE=off $env:CMAKE_ARGS"}
           if ($packageVersion -lt [version]'0.2.0') {
             python -m build --wheel -C--build-option=egg_info "-C--build-option=--tag-build=$buildtag"
           } else {

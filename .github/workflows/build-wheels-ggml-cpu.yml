@@ -78,6 +78,7 @@ jobs:
           if ($env:AVXVER -eq 'AVX') {$env:CMAKE_ARGS = '-DLLAMA_AVX2=off -DLLAMA_FMA=off -DLLAMA_F16C=off'}
           if ($env:AVXVER -eq 'AVX512') {$env:CMAKE_ARGS = '-DLLAMA_AVX512=on'}
           if ($env:AVXVER -eq 'basic') {$env:CMAKE_ARGS = '-DLLAMA_AVX=off -DLLAMA_AVX2=off -DLLAMA_FMA=off -DLLAMA_F16C=off'}
+          if ($packageVersion -gt [version]'0.2.13') {$env:CMAKE_ARGS = "-DLLAMA_NATIVE=off $env:CMAKE_ARGS"}
           python -m build --wheel -C--build-option=egg_info "-C--build-option=--tag-build=+cpu$env:AVXVER"
           
       - name: Upload files to a GitHub release
