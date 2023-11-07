@@ -4,8 +4,8 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'Version tag of llama-cpp-python to build: v0.2.11'
-        default: 'v0.2.11'
+        description: 'Version tag of llama-cpp-python to build: v0.2.14'
+        default: 'v0.2.14'
         required: true
         type: string
 
@@ -18,7 +18,7 @@ jobs:
     uses: ./.github/workflows/build-wheels-oobabooga.yml
     with:
       version: ${{ inputs.version }}
-      config: 'pyver:3.10;cuda:11.7.1'
+      config: 'pyver:3.10;cuda:12.1.1'
       
   build_wheels_main_prio:
     name: Main Prioritized
@@ -26,7 +26,7 @@ jobs:
     with:
       version: ${{ inputs.version }}
       cpu: '0'
-      config: 'pyver:3.10;cuda:11.7.1'
+      config: 'pyver:3.10;cuda:12.1.1'
       
   build_wheels_cpu_prio:
     name: CPU-only Prioritized
@@ -57,7 +57,7 @@ jobs:
     with:
       version: ${{ inputs.version }}
       cpu: '0'
-      exclude: 'pyver:3.10,cuda:11.7.1'
+      exclude: 'pyver:3.10,cuda:12.1.1'
       
   build_textgen_wheels:
     name: Textgen Wheels
@@ -65,7 +65,7 @@ jobs:
     uses: ./.github/workflows/build-wheels-oobabooga.yml
     with:
       version: ${{ inputs.version }}
-      exclude: 'pyver:3.10,cuda:11.7.1'
+      exclude: 'pyver:3.10,cuda:12.1.1'
       
   build_wheels_cpu:
     name: CPU-only Wheels
