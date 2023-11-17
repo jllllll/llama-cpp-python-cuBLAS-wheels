@@ -175,6 +175,12 @@ jobs:
           New-Item 'pyproject.toml' -itemType File -value $newpyproject -force
           New-Item 'CMakeLists.txt' -itemType File -value $cmakelists.Replace('llama_cpp','llama_cpp_cuda') -force
           
+          if ($packageVersion -gt [version]'0.2.13' -and $packageVersion -lt [version]'0.2.19')
+          {
+            $pyScripts = (dir '.\llama_cpp_cuda\*.py')
+            $pyScripts.fullname.foreach({New-Item $_ -itemType File -value (cat $_ -raw).replace('import llama_cpp.llama','from . import llama') -force})
+          }
+          
       - name: Build Wheel
         run: |
           $packageVersion = [version]$env:PCKGVER.TrimStart('v')
