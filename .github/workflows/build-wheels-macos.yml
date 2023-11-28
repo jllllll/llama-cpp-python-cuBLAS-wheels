@@ -4,8 +4,8 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'Version tag of llama-cpp-python to build: v0.2.14'
-        default: 'v0.2.14'
+        description: 'Version tag of llama-cpp-python to build: v0.2.20'
+        default: 'v0.2.20'
         required: true
         type: string
       config:
@@ -21,8 +21,8 @@ on:
   workflow_call:
     inputs:
       version:
-        description: 'Version tag of llama-cpp-python to build: v0.2.14'
-        default: 'v0.2.14'
+        description: 'Version tag of llama-cpp-python to build: v0.2.20'
+        default: 'v0.2.20'
         required: true
         type: string
       config:
@@ -113,6 +113,8 @@ jobs:
             export MACOSX_DEPLOYMENT_TARGET="14.0"
             VERBOSE=1 python -m build --wheel
           fi
+          
+          for file in ./dist/*.whl; do cp "$file" "${file/arm64.whl/aarch64.whl}"; done
           
           export CMAKE_OSX_ARCHITECTURES="x86_64" && export CMAKE_ARGS="-DLLAMA_NATIVE=off -DLLAMA_AVX=off -DLLAMA_AVX2=off -DLLAMA_FMA=off -DLLAMA_F16C=off -DLLAMA_METAL=on" && export ARCHFLAGS="-arch x86_64"
           VERBOSE=1 python -m build --wheel
