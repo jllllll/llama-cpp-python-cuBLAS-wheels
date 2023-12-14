@@ -57,7 +57,7 @@ jobs:
         id: set-matrix
         run: |
           $matrix = @{
-              'os' = "macos-13", "macos-12", "macos-11"
+              'os' = "macos-13", "macos-12"
               'pyver' = "3.10", "3.8", "3.9", "3.11"
           }
           
