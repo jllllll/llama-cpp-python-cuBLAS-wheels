@@ -200,7 +200,7 @@ jobs:
           make_latest: false
           overwrite: true
         
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v4
         if: steps.upload-release.outcome == 'failure'
         with:
           name: ${{ matrix.releasetag == 'wheels' && 'AVX2' || matrix.releasetag }}

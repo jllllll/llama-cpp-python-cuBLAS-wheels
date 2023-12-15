@@ -148,7 +148,7 @@ jobs:
             python -m build --wheel
           }
         
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.releasetag == 'wheels' && 'AVX2' || matrix.releasetag }}
           path: ./dist/*.whl
@@ -237,7 +237,7 @@ jobs:
             VERBOSE=1 python -m build --wheel
           fi
         
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v4
         with:
           name: macos-wheels
           path: ./dist/*.whl
