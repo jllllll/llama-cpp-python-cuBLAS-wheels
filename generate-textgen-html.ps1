@@ -4,7 +4,7 @@ $destinationDir = if (Test-Path $(Join-Path $(Resolve-Path '.') 'index')) {Join-
 $destinationDir = if (Test-Path $(Join-Path $destinationDir 'textgen')) {Join-Path $destinationDir 'textgen'} else {(New-Item $(Join-Path $destinationDir 'textgen') -ItemType 'Directory').fullname}
 $avxVersions = "AVX","AVX2","basic"
 $cudaVersions = "11.7","11.8","12.0","12.1","12.2","rocm5.4.2","rocm5.5","rocm5.5.1","rocm5.6.1"
-$packageVersions = (73..74+76..85).foreach({"$_".Insert(0,'0.1.')}) + (0..11+14..20).foreach({"$_".Insert(0,'0.2.')})
+$packageVersions = (73..74+76..85).foreach({"$_".Insert(0,'0.1.')}) + (0..11+14..20+@(23)).foreach({"$_".Insert(0,'0.2.')})
 $pythonVersions = "3.8","3.9","3.10","3.11"
 $supportedSystems = 'linux_x86_64','win_amd64'
 $wheelSource = 'https://github.com/jllllll/llama-cpp-python-cuBLAS-wheels/releases/download'
@@ -37,6 +37,7 @@ Foreach ($avxVersion in $avxVersions)
 				$pyVer = $pythonVersion.replace('.','')
 				ForEach ($supportedSystem in $supportedSystems)
 				{
+					if ($cudaVersion.StartsWith('rocm') -and [version]$packageVersion -gt [version]"0.2.21" -and $supportedSystem -eq 'win_amd64') {continue}
 					if ($cudaVersion.StartsWith('rocm') -and $cudaVersion.Split('rocm')[-1] -ne '5.5.1' -and $supportedSystem -eq 'win_amd64') {continue}
 					if ($cudaVersion.StartsWith('rocm') -and $cudaVersion.Split('rocm')[-1] -eq '5.5.1' -and $supportedSystem -eq 'linux_x86_64') {continue}
 					if ([version]$packageVersion -gt [version]"0.1.85" -and $supportedSystem -eq 'linux_x86_64') {$supportedSystem = 'manylinux_2_31_x86_64'}
