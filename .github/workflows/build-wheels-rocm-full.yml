@@ -205,6 +205,17 @@ jobs:
           
           $gputargets = 'gfx803;gfx900;gfx906:xnack-;gfx908:xnack-;gfx90a:xnack+;gfx90a:xnack-;gfx1010;gfx1012;gfx1030;gfx1100;gfx1101;gfx1102'
           if ([version]$env:ROCM_VERSION -lt [version]'5.5') {$gputargets = 'gfx803;gfx900;gfx906:xnack-;gfx908:xnack-;gfx90a:xnack+;gfx90a:xnack-;gfx1010;gfx1012;gfx1030'}
+          if ($env:PCKGVER -eq 'v0.2.24') {
+            $cuPath = Get-ChildItem $(Join-Path '.' 'vendor' 'llama.cpp' 'ggml-cuda.cu')
+            $cuFile = Get-Content $cuPath.fullname -raw
+            $regex1 = [regex]::escape('#define __shfl_xor_sync(mask, var, laneMask, width) __shfl_xor(var, laneMask, width)')
+            $regex2 = [regex]::escape('#define cublasStatus_t hipblasStatus_t')
+            $regexstr = "(?s)($regex1)(\s+)(.+?)($regex2)"
+            $regexmatch = [Regex]::Matches($cuFile,$regexstr)
+            if (!($regexmatch[0].Success)) {throw 'ggml-cuda.cu parsing failed'}
+            $newcuFile = $regexmatch[0].Result(('$`'+'$1$2'+'#define cublasComputeType_t hipblasDatatype_t$2$3$4$2'+'#define cudaDataType_t hipblasDatatype_t'+'$'''))
+            New-Item $cuPath.fullname -itemType File -value $newcuFile -force
+          }
           
           if ($env:AVXVER -eq 'AVX') {$env:CMAKE_ARGS = "-GNinja -DLLAMA_HIPBLAS=ON -DLLAMA_AVX2=off -DLLAMA_FMA=off -DLLAMA_F16C=off -DGPU_TARGETS=$gputargets"}
           if ($env:AVXVER -eq 'AVX512') {$env:CMAKE_ARGS = "-GNinja -DLLAMA_HIPBLAS=ON -DLLAMA_AVX512=on -DGPU_TARGETS=$gputargets"}
