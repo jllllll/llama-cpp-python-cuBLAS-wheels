@@ -3,7 +3,7 @@ Set-Location $PSScriptRoot
 $destinationDir = if (Test-Path $(Join-Path $(Resolve-Path '.') 'index')) {Join-Path '.' 'index' -resolve} else {(New-Item 'index' -ItemType 'Directory').fullname}
 $avxVersions = "AVX","AVX2","AVX512","basic"
 $cudaVersions = "11.6","11.7","11.8","12.0","12.1","12.2","rocm5.4.2","rocm5.5","rocm5.5.1","rocm5.6.1","cpu"
-$packageVersions = (@(62)+66..74+76..85).foreach({"$_".Insert(0,'0.1.')}) + (0..11+14..20+@(23)).foreach({"$_".Insert(0,'0.2.')})
+$packageVersions = (@(62)+66..74+76..85).foreach({"$_".Insert(0,'0.1.')}) + (0..11+14..25).foreach({"$_".Insert(0,'0.2.')})
 $pythonVersions = "3.7","3.8","3.9","3.10","3.11"
 $supportedSystems = 'linux_x86_64','win_amd64','macosx_11_0_x86_64','macosx_12_0_x86_64','macosx_13_0_x86_64','macosx_14_0_x86_64','macosx_11_0_arm64','macosx_12_0_arm64','macosx_13_0_arm64','macosx_14_0_arm64','macosx_11_0_aarch64','macosx_12_0_aarch64','macosx_13_0_aarch64','macosx_14_0_aarch64'
 $wheelSource = 'https://github.com/jllllll/llama-cpp-python-cuBLAS-wheels/releases/download'
@@ -42,7 +42,7 @@ Foreach ($avxVersion in $avxVersions)
 				{
 					$doMacos = $avxVersion -eq 'basic' -and $cudaVersion -eq 'cpu' -and $supportedSystem.contains('macosx') -and (($packageVersion -eq '0.1.85' -and !$supportedSystem.contains('macosx_14_0')) -or [version]$packageVersion -gt [version]'0.2.4')
 					if ([version]$packageVersion -gt '0.2.20' -and $supportedSystem.contains('macosx_11_0')) {$doMacos = $false}
-					if ($cudaVersion.StartsWith('rocm') -and [version]$packageVersion -gt [version]"0.2.21" -and $supportedSystem -eq 'win_amd64') {continue}
+					if ($cudaVersion.StartsWith('rocm') -and [version]$packageVersion -gt [version]"0.2.20" -and $supportedSystem -eq 'win_amd64') {continue}
 					if ($cudaVersion.StartsWith('rocm') -and $cudaVersion.Split('rocm')[-1] -ne '5.5.1' -and $supportedSystem -eq 'win_amd64') {continue}
 					if ($cudaVersion.StartsWith('rocm') -and $cudaVersion.Split('rocm')[-1] -eq '5.5.1' -and $supportedSystem -eq 'linux_x86_64') {continue}
 					if ([version]$packageVersion -gt [version]"0.1.85" -and $supportedSystem -eq 'linux_x86_64') {$supportedSystem = 'manylinux_2_31_x86_64'}
