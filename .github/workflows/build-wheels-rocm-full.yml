@@ -51,6 +51,7 @@ jobs:
     env:
       CONFIGIN: ${{ inputs.config }}
       EXCLUDEIN: ${{ inputs.exclude }}
+      PCKGVER: ${{ inputs.version }}
         
     steps:
       - name: Define Job Output
@@ -69,6 +70,9 @@ jobs:
                   @{'os' = 'ubuntu-20.04';'rocm' = '5.5.1'}
               )
           }
+          
+          $packageVersion = [version]$env:PCKGVER.TrimStart('v')
+          if ($packageVersion -gt [version]'0.2.20') {$matrix['os'] = @('ubuntu-20.04')}
           
           if ($env:CONFIGIN -ne 'Default') {$env:CONFIGIN.split(';').foreach({$matrix[$_.split(':')[0]] = $_.split(':')[1].split(',')})}
           
