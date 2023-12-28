@@ -7,7 +7,7 @@ Requirements:
 - CPython 3.8 - 3.11
 
 > [!WARNING]
-> MacOS 11 and Windows ROCm wheels are unavailable for 0.2.22+.  
+> MacOS 11 and Windows ROCm wheels are unavailable for 0.2.21+.  
 > This is due to build issues with llama.cpp that are not yet resolved.
 
 ROCm builds for AMD GPUs: https://github.com/jllllll/llama-cpp-python-cuBLAS-wheels/releases/tag/rocm  
