@@ -66,10 +66,17 @@ jobs:
     with:
       version: ${{ inputs.version }}
       exclude: 'pyver:3.10,cuda:12.1.1'
+
+  build_textgen_tensorcores:
+    name: Tensor Core CUDA wheels
+    needs: build_wheels_main
+    uses: ./.github/workflows/build-wheels-tensorcores.yml
+    with:
+      version: ${{ inputs.version }}
       
   build_wheels_cpu:
     name: CPU-only Wheels
-    needs: build_textgen_wheels
+    needs: build_textgen_tensorcores
     uses: ./.github/workflows/build-wheels-cpu.yml
     with:
       version: ${{ inputs.version }}
