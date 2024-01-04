@@ -69,7 +69,7 @@ jobs:
 
   build_textgen_tensorcores:
     name: Tensor Core CUDA wheels
-    needs: build_wheels_main
+    needs: build_textgen_wheels
     uses: ./.github/workflows/build-wheels-tensorcores.yml
     with:
       version: ${{ inputs.version }}
